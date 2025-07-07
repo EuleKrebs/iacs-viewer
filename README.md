@@ -19,11 +19,11 @@ This project gives an insight into the IACS dataset published by the Europe-LAND
     ```
 2. Install dependencies:
     ```bash
-    npm install
+    uv run
     ```
 3. Start the development server:
     ```bash
-    npm start
+    uv venv
     ```
 
 ## Dataset
