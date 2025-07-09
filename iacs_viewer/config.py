@@ -10,7 +10,7 @@ class Config:
     # Logging settings
     LOG_LEVEL = 'DEBUG'
     LOG_FORMAT = '%(asctime)s - %(levelname)s - %(message)s'
-    LOG_FILE = 'app.log'
+    LOG_FILE = 'logs/app.log'
 
 class DevelopmentConfig(Config):
     DEBUG = True
@@ -18,3 +18,7 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     DEBUG = False
     LOG_LEVEL = 'ERROR'
+
+class CoolConfig(object):
+    SQLALCHEMY_DATABASE_URI = "postgresql://cnoll:1234@localhost:5432/cool_db"
+    SQLALCHEMY_TRACK_MODIFICATIONS = False

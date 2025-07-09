@@ -1,5 +1,5 @@
 from flask import Flask
-from app.config import Config, DevelopmentConfig, ProductionConfig
+from iacs_viewer.config import Config, DevelopmentConfig, ProductionConfig
 import os
 from dotenv import load_dotenv
 
@@ -12,10 +12,10 @@ env = os.getenv('FLASK_ENV', 'development')
 config_class = ProductionConfig if env == 'production' else DevelopmentConfig
 
 def create_app():
-    app = Flask('IACS-Viewer')
+    app = Flask(__name__)
     app.config.from_object(config_class)
 
-    from app.routes.main import main
+    from iacs_viewer.routes.main import main
     app.register_blueprint(main)
 
     return app
