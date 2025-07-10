@@ -12,6 +12,10 @@ class Config:
     LOG_FORMAT = '%(asctime)s - %(levelname)s - %(message)s'
     LOG_FILE = 'logs/app.log'
 
+    # db settings
+    SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI', 'sqlite:///app.db')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
 class DevelopmentConfig(Config):
     DEBUG = True
     

@@ -26,6 +26,7 @@ class IacsField(db.Model):
 
     __table_args__ = (
         db.UniqueConstraint('field_id', 'nation', 'year', name='unique_field_year'),
+        {'schema': 'iacs'}
     )
 
     def __init__(self, field_id, crop_code, crop_name, EC_trans_n, EC_hcat_n, EC_hcat_c,
