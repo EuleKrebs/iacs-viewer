@@ -1,8 +1,8 @@
-from best_app.database import db
-from sqlalchemy.dialects.postgresql import JSON, GEOMETRY  # Assuming PostGIS if using Postgres
+from iacs_viewer.database import db
+from geoalchemy2 import Geometry
 
-class IacsField(db.Model):
-    __tablename__ = 'iacs_fields'
+class Fields(db.Model):
+    __tablename__ = 'fields'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     
@@ -22,7 +22,7 @@ class IacsField(db.Model):
     nation = db.Column(db.String, nullable=False)
     year = db.Column(db.Integer, nullable=False)
 
-    geometry = db.Column(GEOMETRY("POLYGON"), nullable=True)
+    geometry = db.Column(Geometry("POLYGON"), nullable=True)
 
     __table_args__ = (
         db.UniqueConstraint('field_id', 'nation', 'year', name='unique_field_year'),
@@ -51,7 +51,7 @@ class IacsField(db.Model):
         self.geometry = geometry
 
     def register_if_not_exist(self):
-        exists = IacsField.query.filter_by(field_id=self.field_id, nation=self.nation, year=self.year).first()
+        exists = Fields.query.filter_by(field_id=self.field_id, nation=self.nation, year=self.year).first()
         if not exists:
             db.session.add(self)
             db.session.commit()
@@ -59,7 +59,7 @@ class IacsField(db.Model):
 
     @staticmethod
     def get_by_field_id(field_id, nation, year):
-        return IacsField.query.filter_by(field_id=field_id, nation=nation, year=year).first()
+        return Fields.query.filter_by(field_id=field_id, nation=nation, year=year).first()
 
     def __repr__(self):
-        return f"<IacsField {self.field_id} ({self.year}) – {self.crop_name}>"
+        return f"<Fields {self.field_id} ({self.year}) – {self.crop_name}>"

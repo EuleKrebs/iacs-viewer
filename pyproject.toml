@@ -8,6 +8,7 @@ dependencies = [
     "dotenv>=0.9.9",
     "flask>=3.1.1",
     "flask-sqlalchemy>=3.1.1",
+    "geoalchemy2>=0.17.1",
     "geopandas>=1.1.1",
     "pip>=25.1.1",
     "polars>=1.31.0",

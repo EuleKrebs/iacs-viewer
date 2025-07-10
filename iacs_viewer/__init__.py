@@ -28,6 +28,12 @@ def create_app():
             print("❌ Database connection failed:")
             print(e)
 
+        from iacs_viewer.models.fields import Fields
+
+        # Create the table(s)
+        db.create_all()
+        print("📦 Tables created (if not already present).")
+
     from iacs_viewer.routes.main import main
     app.register_blueprint(main)
 
