@@ -12,18 +12,44 @@ This project gives an insight into the IACS dataset published by the Europe-LAND
 - User-friendly interface
 
 ## Getting Started
+1. Clone the repository
 
-1. Clone the repository:
     ```bash
     git clone https://github.com/yourusername/iacs-viewer.git
+    cd iacs-viewer
     ```
-2. Install dependencies:
-    ```bash
-    uv run
-    ```
-3. Start the development server:
+
+2. Set up a virtual environment and install dependencies
+
     ```bash
     uv venv
+    source .venv/bin/activate
+    uv sync
+    ```
+
+3. Configure environment variables
+
+    Create a `.env` file in the root directory and add:
+
+    ```env
+    FLASK_ENV=development
+    SQLALCHEMY_DATABASE_URI=postgresql://your_user:your_password@localhost:5432/DIACS
+    SECRET_KEY=your_secret_key
+    ```
+
+4. Setup a postgreSQL database
+
+    - Create a database named `DIACS`
+    - Ensure the PostGIS extension is enabled:
+
+    ```sql
+    CREATE EXTENSION IF NOT EXISTS postgis;
+    ```
+
+5. Start the development server
+
+    ```bash
+    python run.py
     ```
 
 ## Dataset
