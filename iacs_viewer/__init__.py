@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_migrate import Migrate
 from iacs_viewer.config import Config, DevelopmentConfig, ProductionConfig
 from iacs_viewer.database import db 
 import os
@@ -19,6 +20,7 @@ def create_app():
     app.config.from_object(config_class)
 
     db.init_app(app)
+    migrate = Migrate(app, db)
     # Check DB connection
     with app.app_context():
         try:
@@ -27,12 +29,6 @@ def create_app():
         except OperationalError as e:
             print("❌ Database connection failed:")
             print(e)
-
-        from iacs_viewer.models.fields import Fields
-
-        # Create the table(s)
-        db.create_all()
-        print("📦 Tables created (if not already present).")
 
     from iacs_viewer.routes.main import main
     app.register_blueprint(main)

@@ -207,3 +207,36 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Docker
+docker-compose.override.yml
+Dockerfile.*
+*.tar
+*.img
+*.container
+*.pid
+
+# Postgres data (from your docker-compose)
+pData/
+*.sql
+*.dump
+
+# Flask-Migrate migration folders (if you don't want to track them)
+migrations/
+
+# VSCode settings (if not already ignored)
+.vscode/
+
+# MacOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Logs
+*.log
+
+# Test output
+test-results/
