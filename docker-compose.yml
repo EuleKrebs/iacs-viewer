@@ -16,12 +16,15 @@ services:
       retries: 10
       start_period: 10s
   iacs-viewer:
-    container_name: iacs-viewer
+    container_name: iacs_viewer
     build:
       context: .
       dockerfile: Dockerfile
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_RUN_HOST=0.0.0.0
     ports:
-      - 8008:5000    
+      - 5000:5000    
     depends_on:
       db:
         condition: service_healthy    

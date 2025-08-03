@@ -1,0 +1,34 @@
+.git
+*.gitignore
+Dockerfile
+docker-compose.yml
+docker-compose-dev.yml
+.DS_Store
+.gitignore
+.dockerignore
+
+/credentials
+/cache
+/store
+
+/node_modules
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.mo
+*.pyc
+*.swp
+*.swo
+*.~
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+pData/
+dev/
