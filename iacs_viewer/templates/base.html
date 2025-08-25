@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        {% block head %}
+        <!-- General style sheet -->
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+        <title>{% block title %}{% endblock %} - My Webpage</title>
+        
+        <!-- Leaflet CSS -->
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+          integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+          crossorigin="" />
+            
+        <!-- d3 -->
+        <!-- <script src="https://d3js.org/d3.v5.min.js"></script> -->
+            
+        <!-- Simple Css -->
+        <link rel="stylesheet" href="https://cdn.simplecss.org/simple.css">
+
+        {% endblock %}
+    </head>
+    <body>
+        <div id="content">
+            {% block content %}{% endblock %}
+        </div>
+        <div id="footer">
+            {% block footer %}   
+            <footer>
+              <p>&copy; 2023 My Webpage</p>
+            </footer>
+            {% endblock %}
+        </div>
+        {% if popout %}
+        <script>
+            // Open a minimal popup window with no URL bar and minimal chrome
+            const popup = window.open(
+            "",
+            "QuickInfo",
+            "width=400,height=300,top=200,left=400,resizable,scrollbars,toolbar=no,location=no,menubar=no,status=no"
+            );
+            if (popup) {
+            popup.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Quick Info</title>
+                    <link rel="stylesheet" href="https://cdn.simplecss.org/simple.css">
+                    <style>
+                    body { margin: 1.5em; }
+                    </style>
+                </head>
+                <body>
+                    <h3>Quick Info</h3>
+                    <div>
+                    This content comes from a Jinja template. You can inject data like:
+                    <pre>Message: {{ popout|e }}</pre>
+                    </div>
+                    <button onclick="window.close()">Close</button>
+                </body>
+                </html>
+            `);
+            popup.document.close();
+            }
+        </script>
+        {% endif %}
+    </body>
+</html>

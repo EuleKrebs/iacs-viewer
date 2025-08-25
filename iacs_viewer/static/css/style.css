@@ -1,15 +1,33 @@
 /* Remove the default margin and padding from the body. */
-body {
+html, body {
+  width: 100%;
   padding: 0;
   margin: 0;
   background-color: white;
   color: black;
 }
 
+#content, #footer {
+  width: 100%;
+  max-width: none;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
 /* Set map, body, and html to 100% of the screen size. */
 #map {
-  height: 500px; 
-  width: 800px;
+  height: 500px;
+  width: 100%;
+  display: block;
+}
+
+#update_buttons {
+  display: flex;
+  gap: 10px;
+}
+
+#map_dwnld {
+  width: 200px; /* or any width you prefer */
 }
 
 :root {

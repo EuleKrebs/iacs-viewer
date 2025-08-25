@@ -18,7 +18,7 @@ config_class = ProductionConfig if env == 'production' else DevelopmentConfig
 def create_app():
     app = Flask(__name__)
     app.config.from_object(config_class)
-
+    
     db.init_app(app)
     migrate = Migrate(app, db)
     # Check DB connection
@@ -32,5 +32,7 @@ def create_app():
 
     from iacs_viewer.routes.main import main
     app.register_blueprint(main)
+    from iacs_viewer.routes.populate import bp as populate
+    app.register_blueprint(populate, url_prefix='/populate')
 
     return app

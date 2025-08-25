@@ -1,38 +1,40 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
 
-<head>
-  <meta charset="utf-8">
+{% block title %}Map Template{% endblock %}
+{% block head %}
+{{ super() }}
+<meta charset="utf-8">
   <title>Basic Map</title>
+{% endblock %}
+{% block content %}
+<h1>Map template</h1>
+<hr>
 
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
-    integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
-    crossorigin="" />
+<!-- The div where we'll insert our map -->
+<div id="map"></div>
 
-  <!-- Leaflet JavaScript code -->
-  <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
-    integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
-    crossorigin=""></script>
+<!-- Leaflet JavaScript code -->
+<script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
+  integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+  crossorigin=""></script>
 
-  <!-- d3 -->
-  <script src="https://d3js.org/d3.v5.min.js"></script>
+<!-- JavaScript file -->
+<script type="text/javascript" src="{{ url_for('static', filename='js/logic.js') }}"></script>
 
-  <!-- Simple Css -->
-  <link rel="stylesheet" href="https://cdn.simplecss.org/simple.css">
+<div id="update_buttons">
+  <form method="post">
+    <label for="map_dwnld">Choose Resource</label>
+    <select id="map_dwnld" name="map_dwnld">
+      {% for resource in resources %}
+      <option value="{{ resource.id }}">{{ resource.name }}</option>
+      {% endfor %}
+    </select>
+    <button class="button" name="action" value="update" formaction="{{ url_for('populate.update_resource') }}">Update</button>
+    <button class="button" name="action" value="download" formaction="{{ url_for('populate.download_resource') }}">Download</button>
+  </form>
+</div>
+{% endblock %}
 
-  <!-- Our CSS -->
-  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-
-<body>
-  <h1>Map template</h1>
-  <hr>
-  <!-- The div where we'll insert our map -->
-  <div id="map"></div>
-
-  <!-- JavaScript file -->
-  <script type="text/javascript" src="{{ url_for('static', filename='js/logic.js') }}"></script>
-</body>
-
-</html>
+{% block footer %}
+{{ super() }}
+{% endblock %}

@@ -1,7 +1,9 @@
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, request
+from iacs_viewer.models.resources import Resources
 
 main = Blueprint('main', __name__)
 
-@main.route("/")
+@main.route("/", methods=["GET", "POST"])
 def index():
-    return render_template("index.html")
+    resources = Resources.query.all()
+    return render_template("index.html", resources=resources)

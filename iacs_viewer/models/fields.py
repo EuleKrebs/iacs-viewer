@@ -9,29 +9,31 @@ class Fields(db.Model):
     field_id = db.Column(db.String, nullable=False)
     farm_id = db.Column(db.String, nullable=True)
 
-    crop_code = db.Column(db.String, nullable=False)
-    crop_name = db.Column(db.String, nullable=False)
-    EC_trans_n = db.Column(db.String, nullable=False)
-    EC_hcat_n = db.Column(db.String, nullable=False)
-    EC_hcat_c = db.Column(db.String, nullable=False)
+    crop_code = db.Column(db.String, nullable=True)
+    crop_name = db.Column(db.String, nullable=True)
+    EC_trans_n = db.Column(db.String, nullable=True)
+    EC_hcat_n = db.Column(db.String, nullable=True)
+    EC_hcat_c = db.Column(db.String, nullable=True)
 
     organic = db.Column(db.Boolean, nullable=True)
-    field_size = db.Column(db.Float, nullable=False)
+    field_size = db.Column(db.Float, nullable=True)
     crop_area = db.Column(db.Float, nullable=True)
 
-    nation = db.Column(db.String, nullable=False)
-    year = db.Column(db.Integer, nullable=False)
+    nation = db.Column(db.String, nullable=True)
+    year = db.Column(db.Integer, nullable=True)
 
     geometry = db.Column(Geometry("POLYGON"), nullable=True)
 
-    __table_args__ = (
-        db.UniqueConstraint('field_id', 'nation', 'year', name='unique_field_year'),
-        {'schema': 'iacs'}
-    )
+    updated_at = db.Column(db.DateTime, nullable=False, default=db.func.now(), onupdate=db.func.now())
+
+    #__table_args__ = (
+    #    db.UniqueConstraint('field_id', 'nation', 'year', name='unique_field_year'),
+    #    {'schema': 'iacs'}
+    #)
 
     def __init__(self, field_id, crop_code, crop_name, EC_trans_n, EC_hcat_n, EC_hcat_c,
                  field_size, nation, year, farm_id=None, organic=None,
-                 crop_area=None, geometry=None):
+                 crop_area=None, geometry=None, **kwargs):
 
         self.field_id = field_id
         self.farm_id = farm_id
@@ -50,12 +52,16 @@ class Fields(db.Model):
         self.year = year
         self.geometry = geometry
 
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
     def register_if_not_exist(self):
         exists = Fields.query.filter_by(field_id=self.field_id, nation=self.nation, year=self.year).first()
         if not exists:
             db.session.add(self)
             db.session.commit()
-        return True
+            return True
+        return False
 
     @staticmethod
     def get_by_field_id(field_id, nation, year):
