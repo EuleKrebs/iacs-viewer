@@ -1,38 +1,30 @@
 from flask import Flask
-from flask_migrate import Migrate
 from iacs_viewer.config import Config, DevelopmentConfig, ProductionConfig
-from iacs_viewer.database import db 
+from iacs_viewer.query_engine import QueryEngine
 import os
 from dotenv import load_dotenv
-from sqlalchemy import text
-from sqlalchemy.exc import OperationalError
 
-# load  environment variables
+# load environment variables
 load_dotenv()
-# Selects the environment based on the FLASK_ENV environment variable
-# Defaults to development if not set
+
 env = os.getenv('FLASK_ENV', 'development')
-# select the configuration class based on the environment
 config_class = ProductionConfig if env == 'production' else DevelopmentConfig
+
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(config_class)
-    
-    db.init_app(app)
-    migrate = Migrate(app, db)
-    # Check DB connection
-    with app.app_context():
-        try:
-            db.session.execute(text('SELECT 1'))
-            print("✅ Database connection successful.")
-        except OperationalError as e:
-            print("❌ Database connection failed:")
-            print(e)
 
+    # Initialize DuckDB query engine
+    data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+    os.makedirs(data_dir, exist_ok=True)
+    app.config['QUERY_ENGINE'] = QueryEngine(data_dir=data_dir)
+
+    # Register blueprints
     from iacs_viewer.routes.main import main
     app.register_blueprint(main)
-    from iacs_viewer.routes.populate import bp as populate
-    app.register_blueprint(populate, url_prefix='/populate')
+
+    from iacs_viewer.routes.api import api
+    app.register_blueprint(api, url_prefix='/api')
 
     return app

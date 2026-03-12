@@ -1,40 +1,142 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IACS Viewer</title>
 
-{% block title %}Map Template{% endblock %}
-{% block head %}
-{{ super() }}
-<meta charset="utf-8">
-  <title>Basic Map</title>
-{% endblock %}
-{% block content %}
-<h1>Map template</h1>
-<hr>
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<!-- The div where we'll insert our map -->
-<div id="map"></div>
+    <!-- App styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 
-<!-- Leaflet JavaScript code -->
-<script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
-  integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
-  crossorigin=""></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header id="app-header">
+        <div class="header-left">
+            <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5"/>
+                <path d="M2 12l10 5 10-5"/>
+            </svg>
+            <h1>IACS Viewer</h1>
+        </div>
+        <div class="header-right">
+            <span id="feature-count-badge" class="badge" title="Features loaded">–</span>
+        </div>
+    </header>
 
-<!-- JavaScript file -->
-<script type="text/javascript" src="{{ url_for('static', filename='js/logic.js') }}"></script>
+    <div id="app-container">
+        <!-- Sidebar -->
+        <aside id="sidebar">
+            <!-- Dataset selector -->
+            <section class="sidebar-section" id="dataset-section">
+                <h3 class="section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="section-icon">
+                        <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+                    </svg>
+                    Dataset
+                </h3>
+                <select id="dataset-select">
+                    <option value="">Loading datasets...</option>
+                </select>
+                <div id="dataset-info" class="info-box"></div>
+            </section>
 
-<div id="update_buttons">
-  <form method="post">
-    <label for="map_dwnld">Choose Resource</label>
-    <select id="map_dwnld" name="map_dwnld">
-      {% for resource in resources %}
-      <option value="{{ resource.id }}">{{ resource.name }}</option>
-      {% endfor %}
-    </select>
-    <button class="button" name="action" value="update" formaction="{{ url_for('populate.update_resource') }}">Update</button>
-    <button class="button" name="action" value="download" formaction="{{ url_for('populate.download_resource') }}">Download</button>
-  </form>
-</div>
-{% endblock %}
+            <!-- Filters -->
+            <section class="sidebar-section" id="filter-section">
+                <h3 class="section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="section-icon">
+                        <polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46"/>
+                    </svg>
+                    Filters
+                </h3>
+                <div id="filter-controls">
+                    <div class="filter-row">
+                        <label for="filter-nation">Nation</label>
+                        <select id="filter-nation" data-filter="nation">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-row">
+                        <label for="filter-year">Year</label>
+                        <select id="filter-year" data-filter="year">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-row">
+                        <label for="filter-crop">Crop</label>
+                        <select id="filter-crop_name" data-filter="crop_name">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-row">
+                        <label for="filter-ec">EC Category</label>
+                        <select id="filter-EC_hcat_n" data-filter="EC_hcat_n">
+                            <option value="">All</option>
+                        </select>
+                    </div>
+                    <div class="filter-row">
+                        <label for="filter-organic">Organic</label>
+                        <select id="filter-organic" data-filter="organic">
+                            <option value="">All</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </select>
+                    </div>
+                    <button id="apply-filters" class="btn btn-primary">Apply Filters</button>
+                    <button id="clear-filters" class="btn btn-secondary">Clear</button>
+                </div>
+            </section>
 
-{% block footer %}
-{{ super() }}
-{% endblock %}
+            <!-- Feature detail -->
+            <section class="sidebar-section" id="detail-section">
+                <h3 class="section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="section-icon">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="16" x2="12" y2="12"/>
+                        <line x1="12" y1="8" x2="12.01" y2="8"/>
+                    </svg>
+                    Feature Details
+                </h3>
+                <div id="feature-detail">
+                    <p class="placeholder-text">Click a parcel on the map to view its details.</p>
+                </div>
+            </section>
+
+            <!-- Legend -->
+            <section class="sidebar-section" id="legend-section">
+                <h3 class="section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="section-icon">
+                        <rect x="3" y="3" width="7" height="7"/>
+                        <rect x="14" y="3" width="7" height="7"/>
+                        <rect x="14" y="14" width="7" height="7"/>
+                        <rect x="3" y="14" width="7" height="7"/>
+                    </svg>
+                    Legend (Crop Type)
+                </h3>
+                <div id="legend-content"></div>
+            </section>
+        </aside>
+
+        <!-- Map -->
+        <div id="map-container">
+            <div id="map"></div>
+            <div id="map-overlay">
+                <div id="loading-indicator" class="hidden">
+                    <div class="spinner"></div>
+                    <span>Loading features...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/logic.js') }}"></script>
+</body>
+</html>

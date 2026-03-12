@@ -1,39 +1,452 @@
-/* Remove the default margin and padding from the body. */
-html, body {
-  width: 100%;
-  padding: 0;
-  margin: 0;
-  background-color: white;
-  color: black;
-}
-
-#content, #footer {
-  width: 100%;
-  max-width: none;
-  margin: 0 auto;
-  padding: 0 1rem;
-}
-
-/* Set map, body, and html to 100% of the screen size. */
-#map {
-  height: 500px;
-  width: 100%;
-  display: block;
-}
-
-#update_buttons {
-  display: flex;
-  gap: 10px;
-}
-
-#map_dwnld {
-  width: 200px; /* or any width you prefer */
+/* ===== Reset & Base ===== */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
 }
 
 :root {
-  color-scheme: only light;
+    --bg-primary: #0f1117;
+    --bg-secondary: #1a1d27;
+    --bg-tertiary: #242734;
+    --bg-hover: #2d3044;
+    --text-primary: #e4e6ed;
+    --text-secondary: #9ca0b0;
+    --text-muted: #6b7084;
+    --accent: #4f8ff7;
+    --accent-hover: #3a7ae0;
+    --accent-subtle: rgba(79, 143, 247, 0.12);
+    --border: #2d3044;
+    --success: #34d399;
+    --warning: #fbbf24;
+    --danger: #f87171;
+    --radius: 8px;
+    --radius-sm: 5px;
+    --sidebar-width: 340px;
+    --header-height: 52px;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-h1 {
-  text-align: center;
+html, body {
+    width: 100%;
+    height: 100%;
+    font-family: var(--font);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 13px;
+    line-height: 1.5;
+    overflow: hidden;
+}
+
+/* ===== Header ===== */
+#app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: var(--header-height);
+    padding: 0 20px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    z-index: 1000;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.logo-icon {
+    width: 24px;
+    height: 24px;
+    color: var(--accent);
+}
+
+#app-header h1 {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    background: var(--accent-subtle);
+    color: var(--accent);
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* ===== Layout ===== */
+#app-container {
+    display: flex;
+    height: calc(100vh - var(--header-height));
+}
+
+/* ===== Sidebar ===== */
+#sidebar {
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+#sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+#sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#sidebar::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+}
+
+.sidebar-section {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+
+.section-icon {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+}
+
+/* ===== Form Elements ===== */
+select, input {
+    width: 100%;
+    padding: 7px 10px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: var(--font);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+select:focus, input:focus {
+    border-color: var(--accent);
+}
+
+select {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca0b0' stroke-width='2'%3E%3Cpolyline points='6,9 12,15 18,9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    padding-right: 28px;
+}
+
+/* ===== Buttons ===== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 14px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.btn-primary {
+    background: var(--accent);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--accent-hover);
+}
+
+.btn-secondary {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+#filter-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.filter-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.filter-row label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+#filter-controls .btn {
+    width: 100%;
+}
+
+/* Button group for apply/clear */
+#apply-filters {
+    margin-top: 4px;
+}
+
+/* ===== Info Box ===== */
+.info-box {
+    margin-top: 10px;
+    padding: 10px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: none;
+}
+
+.info-box.visible {
+    display: block;
+}
+
+.info-box .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+}
+
+.info-box .info-row .info-label {
+    color: var(--text-muted);
+}
+
+.info-box .info-row .info-value {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+/* ===== Feature Detail ===== */
+#feature-detail {
+    font-size: 12px;
+}
+
+.placeholder-text {
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 12px;
+}
+
+.detail-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.detail-table tr {
+    border-bottom: 1px solid var(--border);
+}
+
+.detail-table tr:last-child {
+    border-bottom: none;
+}
+
+.detail-table td {
+    padding: 5px 0;
+    vertical-align: top;
+}
+
+.detail-table .detail-key {
+    color: var(--text-muted);
+    font-weight: 500;
+    width: 40%;
+    padding-right: 10px;
+    font-size: 11px;
+}
+
+.detail-table .detail-value {
+    color: var(--text-primary);
+    word-break: break-word;
+}
+
+.detail-value .tag {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.tag-organic {
+    background: rgba(52, 211, 153, 0.15);
+    color: var(--success);
+}
+
+.tag-conventional {
+    background: rgba(156, 160, 176, 0.12);
+    color: var(--text-secondary);
+}
+
+/* ===== Legend ===== */
+#legend-content {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    padding: 3px 8px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+}
+
+.legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+/* ===== Map ===== */
+#map-container {
+    flex: 1;
+    position: relative;
+}
+
+#map {
+    width: 100%;
+    height: 100%;
+}
+
+/* Dark map tiles overlay */
+.leaflet-tile-pane {
+    filter: brightness(0.85) contrast(1.1) saturate(0.8);
+}
+
+.leaflet-control-zoom a {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border) !important;
+}
+
+.leaflet-control-zoom a:hover {
+    background: var(--bg-tertiary) !important;
+}
+
+.leaflet-control-attribution {
+    background: rgba(15, 17, 23, 0.8) !important;
+    color: var(--text-muted) !important;
+    font-size: 10px !important;
+}
+
+.leaflet-control-attribution a {
+    color: var(--text-secondary) !important;
+}
+
+/* ===== Map Overlay ===== */
+#map-overlay {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+#loading-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-secondary);
+    font-size: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+#loading-indicator.hidden {
+    display: none;
+}
+
+.spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ===== Leaflet Popup Override ===== */
+.leaflet-popup-content-wrapper {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border-radius: var(--radius) !important;
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+.leaflet-popup-tip {
+    background: var(--bg-secondary) !important;
+    border: 1px solid var(--border);
+}
+
+.leaflet-popup-content {
+    margin: 10px 14px !important;
+    font-family: var(--font) !important;
+    font-size: 12px !important;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+    :root {
+        --sidebar-width: 100%;
+    }
+
+    #app-container {
+        flex-direction: column;
+    }
+
+    #sidebar {
+        max-height: 40vh;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+    }
+
+    #map-container {
+        min-height: 60vh;
+    }
 }
