@@ -5,8 +5,8 @@ from flask import Blueprint, jsonify, request, current_app
 
 api = Blueprint('api', __name__)
 
-# Threshold: if more features in viewport than this, switch to overview mode
-OVERVIEW_THRESHOLD = 5000
+# Zoom level threshold: below this → overview, at or above → full polygons
+FULL_ZOOM_THRESHOLD = 12
 
 
 def get_engine():
@@ -26,28 +26,42 @@ def dataset_info(filename):
     engine = get_engine()
     try:
         meta = engine.load_dataset(filename)
-        return jsonify({
-            "filename": filename,
-            "columns": engine.get_columns(filename),
-            "bounds": engine.get_bounds(filename),
-            "feature_count": engine.get_feature_count(filename),
-            "crs": meta.get("crs"),
-        })
     except FileNotFoundError:
         return jsonify({"error": "Dataset not found"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+    result = {
+        "filename": filename,
+        "columns": engine.get_columns(filename),
+        "crs": meta.get("crs"),
+    }
+
+    try:
+        result["bounds"] = engine.get_bounds(filename)
+    except Exception:
+        result["bounds"] = {"minx": -10, "miny": 35, "maxx": 30, "maxy": 72}
+
+    try:
+        result["feature_count"] = engine.get_feature_count(filename)
+    except Exception:
+        result["feature_count"] = -1
+
+    return jsonify(result)
+
 
 @api.route('/datasets/<path:filename>/features', methods=['GET'])
 def get_features(filename):
     """
-    Smart feature endpoint: auto-decides between full polygons and overview mode.
+    Smart feature endpoint.
+
+    Decides between overview (clustered points) and full (polygons) based on
+    zoom level. No expensive count queries needed.
 
     Query params:
       bbox: minx,miny,maxx,maxy (EPSG:4326)
       zoom: current map zoom level
-      limit: max features (default 3000)
+      limit: max features for full mode (default 3000)
       offset: pagination offset
       filter_*: attribute filters
       mode: force 'full' or 'overview' (optional, auto if omitted)
@@ -58,10 +72,10 @@ def get_features(filename):
     if bbox:
         bbox = [float(x) for x in bbox.split(',')]
 
-    zoom = request.args.get('zoom', type=float)
+    zoom = request.args.get('zoom', type=float, default=5)
     limit = int(request.args.get('limit', 3000))
     offset = int(request.args.get('offset', 0))
-    mode = request.args.get('mode')  # 'full', 'overview', or None (auto)
+    mode = request.args.get('mode')
 
     filters = {}
     for key, val in request.args.items():
@@ -69,31 +83,31 @@ def get_features(filename):
             filters[key[7:]] = val
 
     try:
-        # Auto-decide mode based on feature count in viewport
-        if mode is None and bbox:
-            count = engine.get_bbox_count(filename, bbox=bbox, filters=filters)
-            if count > OVERVIEW_THRESHOLD:
-                mode = 'overview'
-            else:
-                mode = 'full'
-        elif mode is None:
-            mode = 'full'
+        # Auto-decide based on zoom level (fast, no queries needed)
+        if mode is None:
+            # For small datasets (< 50k features), always use full mode
+            try:
+                total = engine.get_feature_count(filename)
+                if total < 50000:
+                    mode = 'full'
+                elif zoom >= FULL_ZOOM_THRESHOLD:
+                    mode = 'full'
+                else:
+                    mode = 'overview'
+            except Exception:
+                mode = 'overview' if zoom < FULL_ZOOM_THRESHOLD else 'full'
 
         if mode == 'overview':
-            # Pick grid size based on zoom level
-            if zoom is not None:
-                if zoom >= 10:
-                    grid_size = 0.02
-                elif zoom >= 8:
-                    grid_size = 0.05
-                elif zoom >= 6:
-                    grid_size = 0.2
-                elif zoom >= 4:
-                    grid_size = 0.5
-                else:
-                    grid_size = 1.0
-            else:
+            if zoom >= 10:
+                grid_size = 0.02
+            elif zoom >= 8:
+                grid_size = 0.05
+            elif zoom >= 6:
+                grid_size = 0.2
+            elif zoom >= 4:
                 grid_size = 0.5
+            else:
+                grid_size = 1.0
 
             geojson = engine.get_features_overview(
                 filename, bbox=bbox, grid_size=grid_size, filters=filters
