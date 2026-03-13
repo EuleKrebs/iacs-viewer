@@ -28,6 +28,17 @@
             <h1>IACS Viewer</h1>
         </div>
         <div class="header-right">
+            <button id="catalog-toggle" class="header-btn" title="Data Catalog">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                    <polyline points="7,10 12,15 17,10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span>Data Catalog</span>
+                <span id="download-indicator" class="download-indicator hidden">
+                    <span class="mini-spinner"></span>
+                </span>
+            </button>
             <span id="feature-count-badge" class="badge" title="Features loaded">–</span>
         </div>
     </header>
@@ -132,6 +143,42 @@
                 <div id="loading-indicator" class="hidden">
                     <div class="spinner"></div>
                     <span>Loading features...</span>
+                </div>
+            </div>
+            <!-- Download progress toast (bottom-right of map) -->
+            <div id="download-toasts"></div>
+        </div>
+    </div>
+
+    <!-- Data Catalog Modal -->
+    <div id="catalog-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                        <polyline points="7,10 12,15 17,10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Data Catalog
+                </h2>
+                <button class="modal-close" id="catalog-close">&times;</button>
+            </div>
+            <div class="modal-subheader">
+                <p class="catalog-description">
+                    Available IACS datasets from <a href="https://zenodo.org/records/15692199" target="_blank">Zenodo</a>.
+                    Download datasets to explore them in the viewer.
+                </p>
+                <div class="catalog-summary" id="catalog-summary"></div>
+                <div class="catalog-search">
+                    <input type="text" id="catalog-search" placeholder="Search datasets..." />
+                </div>
+            </div>
+            <div class="modal-body" id="catalog-list">
+                <div class="catalog-loading">
+                    <div class="spinner"></div>
+                    <span>Fetching catalog from Zenodo...</span>
                 </div>
             </div>
         </div>

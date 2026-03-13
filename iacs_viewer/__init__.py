@@ -19,6 +19,7 @@ def create_app():
     data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
     os.makedirs(data_dir, exist_ok=True)
     app.config['QUERY_ENGINE'] = QueryEngine(data_dir=data_dir)
+    app.config['DATA_DIR'] = data_dir
 
     # Register blueprints
     from iacs_viewer.routes.main import main
@@ -26,5 +27,8 @@ def create_app():
 
     from iacs_viewer.routes.api import api
     app.register_blueprint(api, url_prefix='/api')
+
+    from iacs_viewer.routes.populate import bp as populate
+    app.register_blueprint(populate, url_prefix='/api/populate')
 
     return app
