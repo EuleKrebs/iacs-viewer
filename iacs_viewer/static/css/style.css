@@ -880,8 +880,31 @@ select {
 .status-badge.extracted { background: var(--success-subtle); color: var(--success); }
 .status-badge.downloading { background: var(--warning-subtle); color: var(--warning); }
 .status-badge.extracting { background: var(--warning-subtle); color: var(--warning); }
+.status-badge.partial { background: var(--warning-subtle); color: var(--warning); }
 .status-badge.error { background: var(--danger-subtle); color: var(--danger); }
 .status-badge.cancelled { background: var(--danger-subtle); color: var(--danger); }
+
+/* Partial extraction icon */
+.catalog-item-icon.partial {
+    background: var(--warning-subtle);
+    color: var(--warning);
+}
+
+/* ===== Overview Tooltip ===== */
+.overview-tooltip {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-sm) !important;
+    font-family: var(--font) !important;
+    font-size: 12px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+    padding: 6px 10px !important;
+}
+
+.overview-tooltip::before {
+    border-top-color: var(--border) !important;
+}
 
 /* ===== Responsive ===== */
 @media (max-width: 768px) {

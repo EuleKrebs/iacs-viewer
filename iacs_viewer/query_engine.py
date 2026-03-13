@@ -2,15 +2,15 @@
 DuckDB-based query engine for IACS data.
 Supports GeoPackage (.gpkg), GeoParquet (.parquet/.geoparquet) files.
 Handles automatic CRS detection and reprojection to EPSG:4326 for web display.
+Uses zoom-adaptive strategies: clustered centroids when zoomed out, full polygons when zoomed in.
 """
 import duckdb
 import json
 import os
 import re
 import glob
+import math
 
-
-# Extensions we recognise as spatial data
 SPATIAL_EXTENSIONS = ('.gpkg', '.parquet', '.geoparquet')
 
 
@@ -19,13 +19,12 @@ class QueryEngine:
         self.data_dir = data_dir
         self.conn = duckdb.connect(":memory:")
         self.conn.execute("INSTALL spatial; LOAD spatial;")
-        self._loaded_datasets = {}  # filename -> {view_name, geom_col, crs, needs_reproject}
+        self._loaded_datasets = {}
 
     # ------------------------------------------------------------------
     # Dataset discovery
     # ------------------------------------------------------------------
     def list_datasets(self):
-        """List available spatial files in data directory (recursive)."""
         datasets = []
         for root, _dirs, files in os.walk(self.data_dir):
             for fname in sorted(files):
@@ -45,23 +44,18 @@ class QueryEngine:
         return datasets
 
     # ------------------------------------------------------------------
-    # Dataset loading
+    # Dataset loading & metadata
     # ------------------------------------------------------------------
     def _safe_view_name(self, filename):
-        """Generate a valid SQL identifier from a filename/path."""
         name = os.path.splitext(os.path.basename(filename))[0]
         name = re.sub(r'[^a-zA-Z0-9]', '_', name)
         return f"ds_{name}"
 
     def _detect_crs(self, col_type):
-        """Extract EPSG code from DuckDB column type like GEOMETRY('EPSG:3035')."""
         m = re.search(r"EPSG:(\d+)", col_type)
-        if m:
-            return int(m.group(1))
-        return None
+        return int(m.group(1)) if m else None
 
     def load_dataset(self, filename):
-        """Register a dataset and detect geometry/CRS info. Returns metadata dict."""
         if filename in self._loaded_datasets:
             return self._loaded_datasets[filename]
 
@@ -82,7 +76,6 @@ class QueryEngine:
         else:
             raise ValueError(f"Unsupported format: {filename}")
 
-        # Detect columns and geometry info
         columns = self.conn.execute(f"DESCRIBE {view_name}").fetchall()
 
         geom_col = None
@@ -94,10 +87,10 @@ class QueryEngine:
                 break
 
         if geom_col is None:
-            geom_col = 'geom'  # fallback
+            geom_col = 'geom'
             geom_type = ''
 
-        crs = self._detect_crs(geom_type)
+        crs = self._detect_crs(geom_type or '')
         needs_reproject = crs is not None and crs != 4326
 
         meta = {
@@ -121,12 +114,27 @@ class QueryEngine:
         return [c["name"] for c in meta["columns"] if c["name"] != meta["geom_col"]]
 
     def _geom_as_4326(self, filename):
-        """SQL expression that yields the geometry in EPSG:4326."""
         meta = self._meta(filename)
         g = meta['geom_col']
         if meta['needs_reproject']:
-            return f"ST_Transform({g}, 'EPSG:{meta['crs']}', 'EPSG:4326', true)"
+            src_crs = meta['crs']
+            return f"ST_Transform({g}, 'EPSG:{src_crs}', 'EPSG:4326', true)"
         return g
+
+    def _bbox_filter(self, filename, bbox):
+        """Build a WHERE clause for bbox filtering in the source CRS."""
+        meta = self._meta(filename)
+        gcol = meta['geom_col']
+        minx, miny, maxx, maxy = bbox
+        if meta['needs_reproject']:
+            src_crs = meta['crs']
+            return (
+                f"ST_Intersects({gcol}, "
+                f"ST_Transform(ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}), "
+                f"'EPSG:4326', 'EPSG:{src_crs}', true))"
+            )
+        else:
+            return f"ST_Intersects({gcol}, ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}))"
 
     # ------------------------------------------------------------------
     # Public query methods
@@ -140,7 +148,6 @@ class QueryEngine:
         return r[0]
 
     def get_bounds(self, filename):
-        """Get bounding box in EPSG:4326."""
         meta = self._meta(filename)
         geom_4326 = self._geom_as_4326(filename)
         r = self.conn.execute(f"""
@@ -154,14 +161,9 @@ class QueryEngine:
         return {"minx": r[0], "miny": r[1], "maxx": r[2], "maxy": r[3]}
 
     def get_features_bbox(self, filename, bbox=None, limit=2000, offset=0, filters=None):
-        """
-        Get features as GeoJSON FeatureCollection.
-        All geometries are returned in EPSG:4326.
-        bbox: [minx, miny, maxx, maxy] in EPSG:4326
-        """
+        """Get features as GeoJSON FeatureCollection in EPSG:4326."""
         meta = self._meta(filename)
         view = meta['view_name']
-        gcol = meta['geom_col']
         attr_cols = self._attr_cols(filename)
         geom_4326 = self._geom_as_4326(filename)
 
@@ -173,19 +175,7 @@ class QueryEngine:
         params = []
 
         if bbox:
-            minx, miny, maxx, maxy = bbox
-            if meta['needs_reproject']:
-                # Transform the bbox envelope into the source CRS for indexed filtering
-                src_crs = meta['crs']
-                where_parts.append(
-                    f"ST_Intersects({gcol}, "
-                    f"ST_Transform(ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}), "
-                    f"'EPSG:4326', 'EPSG:{src_crs}', true))"
-                )
-            else:
-                where_parts.append(
-                    f"ST_Intersects({gcol}, ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}))"
-                )
+            where_parts.append(self._bbox_filter(filename, bbox))
 
         if filters:
             for col, val in filters.items():
@@ -195,7 +185,6 @@ class QueryEngine:
 
         where_clause = (" WHERE " + " AND ".join(where_parts)) if where_parts else ""
         query = f"SELECT {select_clause} FROM {view}{where_clause} LIMIT {limit} OFFSET {offset}"
-
         result = self.conn.execute(query, params).fetchall()
         col_names = attr_cols + ["__geojson__"]
 
@@ -221,6 +210,111 @@ class QueryEngine:
             })
 
         return {"type": "FeatureCollection", "features": features}
+
+    def get_features_overview(self, filename, bbox=None, grid_size=0.5, filters=None):
+        """
+        Get a grid-aggregated overview for zoomed-out views.
+        Groups features into grid cells and returns centroids with counts
+        and dominant crop category. Much faster than loading all polygons.
+        grid_size: size of grid cells in degrees (EPSG:4326)
+        """
+        meta = self._meta(filename)
+        view = meta['view_name']
+        attr_cols = self._attr_cols(filename)
+        geom_4326 = self._geom_as_4326(filename)
+
+        # Determine the best category column
+        cat_col = None
+        for candidate in ('EC_hcat_n', 'crop_name', 'EC_trans_n'):
+            if candidate in attr_cols:
+                cat_col = candidate
+                break
+
+        # Grid cell expressions
+        cx = f"FLOOR(ST_X(ST_Centroid({geom_4326})) / {grid_size}) * {grid_size} + {grid_size / 2}"
+        cy = f"FLOOR(ST_Y(ST_Centroid({geom_4326})) / {grid_size}) * {grid_size} + {grid_size / 2}"
+
+        # Build aggregation query
+        select_parts = [
+            f"{cx} as grid_x",
+            f"{cy} as grid_y",
+            "COUNT(*) as feature_count",
+        ]
+        group_cols = ["grid_x", "grid_y"]
+
+        if cat_col:
+            # Get dominant category per grid cell using a subquery
+            select_parts.append(f'MODE("{cat_col}") as dominant_category')
+
+        select_clause = ", ".join(select_parts)
+
+        where_parts = []
+        params = []
+        if bbox:
+            where_parts.append(self._bbox_filter(filename, bbox))
+        if filters:
+            for col, val in filters.items():
+                if col in attr_cols:
+                    where_parts.append(f'"{col}"::VARCHAR = ?')
+                    params.append(str(val))
+
+        where_clause = (" WHERE " + " AND ".join(where_parts)) if where_parts else ""
+
+        query = f"""
+            SELECT {select_clause}
+            FROM {view}{where_clause}
+            GROUP BY grid_x, grid_y
+            ORDER BY feature_count DESC
+            LIMIT 5000
+        """
+
+        result = self.conn.execute(query, params).fetchall()
+
+        features = []
+        for row in result:
+            grid_x, grid_y, count = row[0], row[1], row[2]
+            dominant = row[3] if cat_col and len(row) > 3 else None
+
+            features.append({
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [grid_x, grid_y]
+                },
+                "properties": {
+                    "feature_count": count,
+                    "dominant_category": dominant,
+                    "grid_size": grid_size,
+                },
+            })
+
+        return {
+            "type": "FeatureCollection",
+            "features": features,
+            "overview": True,
+        }
+
+    def get_bbox_count(self, filename, bbox=None, filters=None):
+        """Fast count of features in a bbox (to decide overview vs full)."""
+        meta = self._meta(filename)
+        view = meta['view_name']
+        attr_cols = self._attr_cols(filename)
+
+        where_parts = []
+        params = []
+        if bbox:
+            where_parts.append(self._bbox_filter(filename, bbox))
+        if filters:
+            for col, val in filters.items():
+                if col in attr_cols:
+                    where_parts.append(f'"{col}"::VARCHAR = ?')
+                    params.append(str(val))
+
+        where_clause = (" WHERE " + " AND ".join(where_parts)) if where_parts else ""
+        r = self.conn.execute(
+            f"SELECT COUNT(*) FROM {view}{where_clause}", params
+        ).fetchone()
+        return r[0]
 
     def get_unique_values(self, filename, column):
         meta = self._meta(filename)

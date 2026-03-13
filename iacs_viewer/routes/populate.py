@@ -1,25 +1,23 @@
 """
 Data catalog & download manager.
 Fetches available IACS datasets from Zenodo and downloads them in the background.
+Supports partial extraction retry for failed files.
 """
 import os
 import time
 import threading
-from zipfile import ZipFile
+from zipfile import ZipFile, BadZipFile
 from flask import Blueprint, jsonify, request, current_app, Response
 import requests
 import json
-import glob
 
 bp = Blueprint('populate', __name__)
 
 ZENODO_RECORD_URL = "https://zenodo.org/api/records/15692199"
+SPATIAL_EXTENSIONS = ('.geoparquet', '.parquet', '.gpkg', '.geojson')
 
-# In-memory download state (per-process)
 _downloads = {}
 _downloads_lock = threading.Lock()
-
-SPATIAL_EXTENSIONS = ('.geoparquet', '.parquet', '.gpkg', '.geojson')
 
 
 def _get_data_dir():
@@ -28,20 +26,24 @@ def _get_data_dir():
 
 
 def _list_local_files(data_dir):
-    """List all spatial files already present in data_dir (recursive)."""
     local = set()
     for root, _dirs, files in os.walk(data_dir):
         for f in files:
             local.add(f)
-            # Also store relative path
-            rel = os.path.relpath(os.path.join(root, f), data_dir)
-            local.add(rel)
     return local
+
+
+def _get_zip_spatial_members(zip_path):
+    """List spatial file members inside a zip. Returns list of member names."""
+    try:
+        with ZipFile(zip_path) as zf:
+            return [m for m in zf.namelist() if m.endswith(SPATIAL_EXTENSIONS)]
+    except (BadZipFile, Exception):
+        return []
 
 
 @bp.route('/catalog', methods=['GET'])
 def catalog():
-    """Fetch available datasets from Zenodo and return enriched list."""
     try:
         resp = requests.get(ZENODO_RECORD_URL, timeout=30)
         resp.raise_for_status()
@@ -57,53 +59,62 @@ def catalog():
         name = f['key']
         size_bytes = f['size']
 
-        # Determine status
         status = 'available'
         progress = 0
+        extracted_files = []
+        failed_files = []
 
-        with _downloads_lock:
-            if name in _downloads:
-                status = _downloads[name]['status']
-                progress = _downloads[name].get('progress', 0)
-
-        # Check if extracted data exists (base name without .zip, look for spatial files)
-        base = name.replace('.zip', '')
-        has_extracted = any(
-            lf.endswith(SPATIAL_EXTENSIONS) and base.split('_')[0] in lf
-            for lf in local_files
-            if not lf.endswith('.zip')
-        )
-
-        # More precise: check if the zip's content files exist
-        if name in local_files and name.endswith('.zip'):
-            zip_path = os.path.join(data_dir, name)
-            if os.path.exists(zip_path):
-                try:
-                    with ZipFile(zip_path) as zf:
-                        spatial_members = [
-                            m for m in zf.namelist()
-                            if m.endswith(SPATIAL_EXTENSIONS)
-                        ]
-                        if spatial_members:
-                            all_extracted = all(
-                                os.path.basename(m) in local_files
-                                for m in spatial_members
-                            )
-                            if all_extracted:
-                                status = 'extracted'
-                                progress = 100
-                            else:
-                                status = 'downloaded'
-                                progress = 100
-                except Exception:
-                    status = 'downloaded'
-                    progress = 100
-
-        # Don't override active download status
+        # Check active downloads first
         with _downloads_lock:
             if name in _downloads and _downloads[name]['status'] in ('downloading', 'extracting'):
                 status = _downloads[name]['status']
                 progress = _downloads[name].get('progress', 0)
+                files.append({
+                    'name': name, 'size_bytes': size_bytes,
+                    'size_mb': round(size_bytes / 1024 / 1024, 1),
+                    'url': f['links']['self'],
+                    'checksum': f.get('checksum', ''),
+                    'status': status, 'progress': progress,
+                    'extracted_files': [], 'failed_files': [],
+                })
+                continue
+
+        # Check zip on disk
+        zip_path = os.path.join(data_dir, name)
+        if name in local_files and name.endswith('.zip') and os.path.exists(zip_path):
+            members = _get_zip_spatial_members(zip_path)
+            if members:
+                for m in members:
+                    bn = os.path.basename(m)
+                    if bn in local_files:
+                        extracted_files.append(bn)
+                    else:
+                        failed_files.append(bn)
+
+                if len(extracted_files) == len(members):
+                    status = 'extracted'
+                    progress = 100
+                elif len(extracted_files) > 0:
+                    status = 'partial'
+                    progress = round(len(extracted_files) / len(members) * 100)
+                else:
+                    status = 'downloaded'
+                    progress = 100
+            else:
+                status = 'downloaded'
+                progress = 100
+
+        # Check download history for errors
+        with _downloads_lock:
+            if name in _downloads:
+                dl = _downloads[name]
+                if dl['status'] == 'error' and status == 'available':
+                    status = 'error'
+                elif dl['status'] == 'extracted' and status != 'extracted':
+                    # Re-check: download said extracted but files may be there now
+                    pass
+                if dl.get('failed_files'):
+                    failed_files = list(set(failed_files) | set(dl['failed_files']))
 
         files.append({
             'name': name,
@@ -113,10 +124,11 @@ def catalog():
             'checksum': f.get('checksum', ''),
             'status': status,
             'progress': progress,
+            'extracted_files': extracted_files,
+            'failed_files': failed_files,
         })
 
     files.sort(key=lambda x: x['name'])
-
     return jsonify({
         'record_id': data.get('id'),
         'title': data.get('metadata', {}).get('title', 'IACS Dataset'),
@@ -127,7 +139,6 @@ def catalog():
 
 @bp.route('/download', methods=['POST'])
 def start_download():
-    """Start a background download for a dataset file."""
     body = request.get_json()
     if not body or 'name' not in body or 'url' not in body:
         return jsonify({"error": "Missing 'name' and 'url'"}), 400
@@ -144,33 +155,25 @@ def start_download():
 
     with _downloads_lock:
         _downloads[name] = {
-            'status': 'downloading',
-            'progress': 0,
-            'downloaded_bytes': 0,
-            'total_bytes': 0,
-            'speed_bps': 0,
-            'error': None,
-            'started_at': time.time(),
+            'status': 'downloading', 'progress': 0,
+            'downloaded_bytes': 0, 'total_bytes': 0, 'speed_bps': 0,
+            'error': None, 'started_at': time.time(),
+            'extracted_files': [], 'failed_files': [],
         }
 
-    thread = threading.Thread(
-        target=_download_worker,
-        args=(name, url, data_dir),
-        daemon=True
-    )
-    thread.start()
-
+    threading.Thread(target=_download_worker, args=(name, url, data_dir), daemon=True).start()
     return jsonify({"status": "started", "name": name})
 
 
 @bp.route('/extract', methods=['POST'])
 def extract_zip():
-    """Extract an already-downloaded zip file."""
+    """Extract a zip. Optionally pass 'files' array to extract only specific members."""
     body = request.get_json()
     if not body or 'name' not in body:
         return jsonify({"error": "Missing 'name'"}), 400
 
     name = body['name']
+    only_files = body.get('files')  # optional: list of specific filenames to re-extract
     data_dir = _get_data_dir()
     zip_path = os.path.join(data_dir, name)
 
@@ -179,22 +182,16 @@ def extract_zip():
 
     with _downloads_lock:
         _downloads[name] = {
-            'status': 'extracting',
-            'progress': 100,
+            'status': 'extracting', 'progress': 100,
             'downloaded_bytes': os.path.getsize(zip_path),
             'total_bytes': os.path.getsize(zip_path),
-            'speed_bps': 0,
-            'error': None,
-            'started_at': time.time(),
+            'speed_bps': 0, 'error': None, 'started_at': time.time(),
+            'extracted_files': [], 'failed_files': [],
         }
 
-    thread = threading.Thread(
-        target=_extract_worker,
-        args=(name, zip_path, data_dir),
-        daemon=True
-    )
-    thread.start()
-
+    threading.Thread(
+        target=_extract_worker, args=(name, zip_path, data_dir, only_files), daemon=True
+    ).start()
     return jsonify({"status": "extracting", "name": name})
 
 
@@ -215,17 +212,13 @@ def downloads_status():
 
 @bp.route('/downloads/events', methods=['GET'])
 def download_events():
-    """Server-Sent Events stream for real-time download progress."""
     def generate():
         while True:
             with _downloads_lock:
                 data = json.dumps(_downloads)
             yield f"data: {data}\n\n"
             with _downloads_lock:
-                active = any(
-                    d['status'] in ('downloading', 'extracting')
-                    for d in _downloads.values()
-                )
+                active = any(d['status'] in ('downloading', 'extracting') for d in _downloads.values())
             if not active:
                 time.sleep(0.5)
                 with _downloads_lock:
@@ -233,13 +226,14 @@ def download_events():
                 yield f"data: {data}\n\n"
                 break
             time.sleep(1)
-
     return Response(generate(), mimetype='text/event-stream',
                     headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 
 
+# ------------------------------------------------------------------
+# Workers
+# ------------------------------------------------------------------
 def _download_worker(name, url, data_dir):
-    """Background worker: download zip, then extract spatial files."""
     try:
         resp = requests.get(url, stream=True, timeout=600)
         resp.raise_for_status()
@@ -258,20 +252,14 @@ def _download_worker(name, url, data_dir):
                 with _downloads_lock:
                     if _downloads[name]['status'] == 'cancelled':
                         break
-
                 if chunk:
                     f.write(chunk)
                     downloaded += len(chunk)
-
                     now = time.time()
                     elapsed = now - last_time
+                    speed = (downloaded - last_bytes) / elapsed if elapsed >= 1.0 else _downloads.get(name, {}).get('speed_bps', 0)
                     if elapsed >= 1.0:
-                        speed = (downloaded - last_bytes) / elapsed
-                        last_time = now
-                        last_bytes = downloaded
-                    else:
-                        speed = _downloads.get(name, {}).get('speed_bps', 0)
-
+                        last_time, last_bytes = now, downloaded
                     progress = (downloaded / total * 100) if total else 0
                     with _downloads_lock:
                         _downloads[name].update({
@@ -280,16 +268,12 @@ def _download_worker(name, url, data_dir):
                             'speed_bps': round(speed),
                         })
 
-        # Check if cancelled
         with _downloads_lock:
             if _downloads[name]['status'] == 'cancelled':
-                try:
-                    os.remove(zip_path)
-                except OSError:
-                    pass
+                try: os.remove(zip_path)
+                except OSError: pass
                 return
 
-        # Extract
         _extract_worker(name, zip_path, data_dir)
 
     except Exception as e:
@@ -298,31 +282,72 @@ def _download_worker(name, url, data_dir):
             _downloads[name]['error'] = str(e)
 
 
-def _extract_worker(name, zip_path, data_dir):
-    """Extract spatial files from a zip, flattening subdirectories."""
+def _extract_worker(name, zip_path, data_dir, only_files=None):
+    """
+    Extract spatial files from zip with per-file error handling.
+    only_files: if set, only extract these specific filenames (for retry).
+    """
+    extracted = []
+    failed = []
+
     try:
         with _downloads_lock:
             _downloads[name]['status'] = 'extracting'
-            _downloads[name]['progress'] = 100
 
-        extracted_files = []
-        if name.endswith('.zip') and os.path.exists(zip_path):
-            with ZipFile(zip_path, 'r') as zf:
-                members = [m for m in zf.namelist() if m.endswith(SPATIAL_EXTENSIONS)]
-                for i, member in enumerate(members):
-                    basename = os.path.basename(member)
-                    target = os.path.join(data_dir, basename)
+        if not name.endswith('.zip') or not os.path.exists(zip_path):
+            with _downloads_lock:
+                _downloads[name]['status'] = 'error'
+                _downloads[name]['error'] = 'Not a valid zip file'
+            return
+
+        with ZipFile(zip_path, 'r') as zf:
+            members = [m for m in zf.namelist() if m.endswith(SPATIAL_EXTENSIONS)]
+
+            if only_files:
+                # Filter to only requested files (match by basename)
+                members = [m for m in members if os.path.basename(m) in only_files]
+
+            for i, member in enumerate(members):
+                basename = os.path.basename(member)
+                target = os.path.join(data_dir, basename)
+                try:
                     with zf.open(member) as src, open(target, 'wb') as dst:
-                        dst.write(src.read())
-                    extracted_files.append(basename)
+                        while True:
+                            chunk = src.read(1024 * 1024)
+                            if not chunk:
+                                break
+                            dst.write(chunk)
+                    extracted.append(basename)
+                except Exception as e:
+                    failed.append(basename)
+                    # Clean up partial file
+                    try: os.remove(target)
+                    except OSError: pass
+
+                # Update progress
+                progress = round((i + 1) / len(members) * 100) if members else 100
+                with _downloads_lock:
+                    _downloads[name]['progress'] = progress
+                    _downloads[name]['extracted_files'] = extracted[:]
+                    _downloads[name]['failed_files'] = failed[:]
 
         with _downloads_lock:
-            _downloads[name]['status'] = 'extracted'
-            _downloads[name]['progress'] = 100
+            if failed:
+                _downloads[name]['status'] = 'partial'
+                _downloads[name]['error'] = f'{len(failed)} file(s) failed to extract'
+            else:
+                _downloads[name]['status'] = 'extracted'
             _downloads[name]['completed_at'] = time.time()
-            _downloads[name]['extracted_files'] = extracted_files
+            _downloads[name]['extracted_files'] = extracted
+            _downloads[name]['failed_files'] = failed
 
+    except BadZipFile as e:
+        with _downloads_lock:
+            _downloads[name]['status'] = 'error'
+            _downloads[name]['error'] = f'Corrupt zip file: {str(e)}'
     except Exception as e:
         with _downloads_lock:
             _downloads[name]['status'] = 'error'
             _downloads[name]['error'] = str(e)
+            _downloads[name]['extracted_files'] = extracted
+            _downloads[name]['failed_files'] = failed

@@ -2,21 +2,183 @@
 
 const API_BASE = '/api';
 
-// ===== Crop Colors =====
-const CROP_COLORS = {
-    'Wheat':      '#f59e0b',
-    'Barley':     '#d97706',
-    'Maize':      '#eab308',
-    'Rapeseed':   '#84cc16',
-    'Potatoes':   '#a855f7',
-    'Sugar beet': '#ec4899',
-    'Grassland':  '#22c55e',
-    'Vineyard':   '#8b5cf6',
-    'Olive grove':'#14b8a6',
-    'Fallow':     '#94a3b8',
+// ===== Color Palette for EC_hcat_n categories (from IACS documentation) =====
+// Grouped by land-use type with visually distinct colors
+const CATEGORY_COLORS = {
+    // Cereals — warm yellows/oranges
+    'common_soft_wheat':              '#f59e0b',
+    'spring_common_soft_wheat':       '#f5a623',
+    'winter_common_soft_wheat':       '#e8960a',
+    'durum_hard_wheat':               '#d97706',
+    'spring_durum_hard_wheat':        '#d4790b',
+    'winter_durum_hard_wheat':        '#c26b05',
+    'barley':                         '#fbbf24',
+    'spring_barley':                  '#fbc73e',
+    'winter_barley':                  '#e5a910',
+    'rye':                            '#f0a020',
+    'spring_rye':                     '#eda21e',
+    'winter_rye':                     '#d49018',
+    'grain_maize_corn_popcorn':       '#eab308',
+    'green_silo_maize':               '#c9a00a',
+    'cereal':                         '#fb923c',
+    'spring_oats':                    '#e8b84d',
+    'winter_oats':                    '#d4a642',
+    'spring_triticale':               '#dba030',
+    'winter_triticale':               '#c89028',
+    'millet_sorghum':                 '#cc8822',
+    'rice':                           '#f0d060',
+    'buckwheat':                      '#bba030',
+    'spring_spelt':                   '#d0a838',
+    'winter_spelt':                   '#c09830',
+    'spring_emmer':                   '#c8a044',
+    'winter_emmer':                   '#b89038',
+    'spring_meslin':                  '#ccaa40',
+    'winter_meslin':                  '#bb9a38',
+    'canary_seed_canaryseed':         '#ddb840',
+
+    // Oilseeds — yellow-greens
+    'sunflower':                      '#84cc16',
+    'winter_rapeseed_rape':           '#a3e635',
+    'summer_rapeseed_rape':           '#bef264',
+    'soy_soybeans':                   '#65a30d',
+    'flax_linseed':                   '#78b030',
+    'flax_linseed_oil':               '#6da028',
+    'flax_linen':                     '#72a82c',
+    'oilseed_crops':                  '#9cc420',
+    'hemp_cannabis':                  '#7db824',
+    'camelina':                       '#8ab830',
+
+    // Pulses / Protein — purples
+    'legumes_dried_pulses_protein_crops': '#a855f7',
+    'peas':                           '#8b5cf6',
+    'beans':                          '#7c3aed',
+    'lentils':                        '#9f67e8',
+    'chickpeas':                      '#b07cf0',
+    'sweet_lupins':                   '#9060d8',
+    'vetches':                        '#a070e0',
+
+    // Root crops — pinks
+    'potatoes':                       '#ec4899',
+    'sugar_beet':                     '#f472b6',
+    'fodder_roots':                   '#e05090',
+    'mangelwurzel_fodder_beet':       '#d84888',
+    'beetroot_beets':                 '#e060a0',
+
+    // Vegetables — teals
+    'fresh_vegetables':               '#14b8a6',
+    'cucumber_pickle':                '#0d9488',
+    'pumpkin_squash_gourd':           '#2dd4bf',
+    'radish':                         '#10a898',
+    'flowers_ornamental_plants':      '#06b6d4',
+    'greenhouse_foil_film':           '#0891b2',
+    'topinambur_jerusalem_artichoke': '#0ea5c0',
+
+    // Grassland — greens
+    'pasture_meadow_grassland_grass': '#22c55e',
+    'temporary_grass':                '#4ade80',
+    'poaceae_grasses':                '#16a34a',
+    'clover':                         '#15803d',
+    'alfalfa_lucerne':                '#059669',
+    'esparsette_onobrychis':          '#047857',
+
+    // Permanent crops — deep purples / reds
+    'vineyards_wine_vine_rebland_grapes': '#7c3aed',
+    'olive_plantations':              '#6d28d9',
+    'orchards_fruits':                '#c026d3',
+    'apples':                         '#d946ef',
+    'pears':                          '#c084fc',
+    'cherry_cherries':                '#e11d48',
+    'peach':                          '#f43f5e',
+    'nectarine':                      '#fb7185',
+    'plums':                          '#be185d',
+    'apricots':                       '#f97316',
+    'strawberries':                   '#ef4444',
+    'nuts':                           '#a16207',
+    'hazelnuts_hazel':                '#92400e',
+    'walnuts':                        '#78350f',
+    'sweet_chestnuts':                '#854d0e',
+    'quinces':                        '#ca8a04',
+    'elder_elderberry':               '#9333ea',
+
+    // Industrial / misc — slate / neutrals
+    'industrial_nonfood_crops':       '#64748b',
+    'hops':                           '#a3b818',
+    'mustard':                        '#d0c020',
+    'phacelia':                       '#8890a0',
+    'aromatic_medicinal_culinary_plants_spices_herbs': '#0ea5e9',
+    'black_cumin':                    '#6b7280',
+    'caraway':                        '#7b8290',
+    'fennel':                         '#54b090',
+    'cress':                          '#50a878',
+    'sage_chia':                      '#6aa090',
+    'summer_poppy':                   '#e27070',
+    'winter_poppy':                   '#d06060',
+    'marian_thistles':                '#8888b0',
+    'amaranth':                       '#b04060',
+    'quinoa':                         '#c09040',
+    'silphium_rosinweeds':            '#78a860',
+    'st_johns_wort':                  '#c8a840',
+    'ginko':                          '#88b848',
+
+    // Forestry / fallow
+    'tree_wood_forest':               '#166534',
+    'afforestation_reforestation':    '#14532d',
+    'shrubberries_shrubs':            '#2d6a4f',
+    'fallow_land_not_crop':           '#94a3b8',
+    'unmaintained':                   '#9ca3af',
+    'peat_turf':                      '#78716c',
+
+    // Other
+    'not_known_and_other':            '#6b7280',
+    'other_arable_land_crops':        '#737a88',
+    'other_permanent_crops_plantations': '#7a6898',
+    'nurseries_nursery':              '#50a060',
+    'arable_land_seed_seedlings':     '#88a048',
 };
+
+// Broader grouping for EC_trans_n or crop_name fallback
+const GROUP_COLORS = {
+    'CEREALS': '#f59e0b',
+    'PERMANENT GRASSLANDS': '#22c55e',
+    'TEMPORARY GRASSLANDS': '#4ade80',
+    'LANDES ESTIVES': '#16a34a',
+    'OLIVE TREES': '#6d28d9',
+    'VINES': '#7c3aed',
+    'ORCHARDS': '#c026d3',
+    'NUTS': '#a16207',
+    'VEGETABLES': '#14b8a6',
+    'CORN': '#eab308',
+    'BARLEY': '#fbbf24',
+};
+
 const DEFAULT_COLOR = '#4f8ff7';
-function getCropColor(name) { return CROP_COLORS[name] || DEFAULT_COLOR; }
+
+function getCategoryColor(props) {
+    // Try EC_hcat_n first (most specific)
+    if (props.EC_hcat_n && CATEGORY_COLORS[props.EC_hcat_n]) {
+        return CATEGORY_COLORS[props.EC_hcat_n];
+    }
+    // Try crop_name in the sample data palette
+    if (props.crop_name) {
+        const key = props.crop_name.toLowerCase().replace(/ /g, '_');
+        if (CATEGORY_COLORS[key]) return CATEGORY_COLORS[key];
+        // Try matching partial group names
+        for (const [group, color] of Object.entries(GROUP_COLORS)) {
+            if (props.crop_name.toUpperCase().includes(group)) return color;
+        }
+    }
+    // Try EC_trans_n
+    if (props.EC_trans_n) {
+        for (const [group, color] of Object.entries(GROUP_COLORS)) {
+            if (props.EC_trans_n.toUpperCase().includes(group)) return color;
+        }
+    }
+    return DEFAULT_COLOR;
+}
+
+function getLegendLabel(props) {
+    return props.EC_hcat_n || props.crop_name || props.EC_trans_n || 'Unknown';
+}
 
 // ===== Map Setup =====
 const map = L.map('map', { center: [48.5, 10], zoom: 5, zoomControl: true });
@@ -28,7 +190,8 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
 let featureLayer = null;
 let selectedFeature = null;
 let currentDataset = null;
-let currentColumns = []; // track columns of current dataset for dynamic filters
+let currentColumns = [];
+let lastMode = null; // 'full' or 'overview'
 
 // ===== Helpers =====
 function showLoading() { document.getElementById('loading-indicator').classList.remove('hidden'); }
@@ -78,7 +241,6 @@ async function loadDatasets(selectName) {
             opt.textContent = `${ds.name} (${ds.size_mb} MB)`;
             select.appendChild(opt);
         });
-        // Select specific dataset or first
         const target = selectName || datasets[0].name;
         select.value = target;
         if (select.value) selectDataset(select.value);
@@ -102,7 +264,6 @@ async function selectDataset(filename) {
         await loadFeatures();
     } catch (e) {
         console.error('Error loading dataset:', e);
-        document.getElementById('dataset-info').classList.remove('visible');
     } finally {
         hideLoading();
     }
@@ -111,18 +272,17 @@ async function selectDataset(filename) {
 function showDatasetInfo(info) {
     const box = document.getElementById('dataset-info');
     box.classList.add('visible');
-    const crsLabel = info.crs ? `EPSG:${info.crs}` : 'EPSG:4326';
+    const crs = info.crs ? `EPSG:${info.crs}` : 'EPSG:4326';
     box.innerHTML = `
         <div class="info-row"><span class="info-label">Features</span><span class="info-value">${info.feature_count.toLocaleString()}</span></div>
         <div class="info-row"><span class="info-label">Columns</span><span class="info-value">${info.columns.length}</span></div>
-        <div class="info-row"><span class="info-label">Source CRS</span><span class="info-value">${crsLabel}</span></div>
+        <div class="info-row"><span class="info-label">Source CRS</span><span class="info-value">${crs}</span></div>
         <div class="info-row"><span class="info-label">Format</span><span class="info-value">${currentDataset.split('.').pop().toUpperCase()}</span></div>
     `;
     document.getElementById('feature-count-badge').textContent = `${info.feature_count.toLocaleString()} features`;
 }
 
 // ===== Filters =====
-// We try common IACS columns; skip ones that don't exist in the dataset
 const FILTER_COLUMNS = ['nation', 'year', 'crop_name', 'EC_hcat_n'];
 
 async function populateFilters(filename) {
@@ -130,15 +290,12 @@ async function populateFilters(filename) {
         const sel = document.querySelector(`[data-filter="${col}"]`);
         if (!sel) continue;
         const row = sel.closest('.filter-row');
-
-        // Hide filter if column doesn't exist in dataset
         if (!currentColumns.includes(col)) {
             if (row) row.style.display = 'none';
             sel.innerHTML = '<option value="">All</option>';
             continue;
         }
         if (row) row.style.display = '';
-
         try {
             const values = await apiGet(`/datasets/${encodeURIComponent(filename)}/values/${col}`);
             const first = sel.options[0];
@@ -146,28 +303,19 @@ async function populateFilters(filename) {
             sel.appendChild(first);
             values.forEach(v => {
                 const opt = document.createElement('option');
-                opt.value = v;
-                opt.textContent = v;
+                opt.value = v; opt.textContent = v;
                 sel.appendChild(opt);
             });
-        } catch (e) {
-            console.warn(`Filter ${col}:`, e);
-        }
+        } catch (e) {}
     }
-
-    // Also handle organic filter visibility
     const organicRow = document.querySelector('[data-filter="organic"]')?.closest('.filter-row');
-    if (organicRow) {
-        organicRow.style.display = currentColumns.includes('organic') ? '' : 'none';
-    }
+    if (organicRow) organicRow.style.display = currentColumns.includes('organic') ? '' : 'none';
 }
 
 function getActiveFilters() {
     const f = {};
     document.querySelectorAll('[data-filter]').forEach(el => {
-        if (el.value && currentColumns.includes(el.dataset.filter)) {
-            f[el.dataset.filter] = el.value;
-        }
+        if (el.value && currentColumns.includes(el.dataset.filter)) f[el.dataset.filter] = el.value;
     });
     return f;
 }
@@ -179,36 +327,86 @@ async function loadFeatures() {
     try {
         const bounds = map.getBounds();
         const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()].join(',');
+        const zoom = map.getZoom();
         const filters = getActiveFilters();
         let fp = '';
         for (const [k, v] of Object.entries(filters)) fp += `&filter_${k}=${encodeURIComponent(v)}`;
 
-        const geojson = await apiGet(`/datasets/${encodeURIComponent(currentDataset)}/features?bbox=${bbox}&limit=3000${fp}`);
+        const geojson = await apiGet(
+            `/datasets/${encodeURIComponent(currentDataset)}/features?bbox=${bbox}&zoom=${zoom}&limit=3000${fp}`
+        );
 
         if (featureLayer) map.removeLayer(featureLayer);
-        featureLayer = L.geoJSON(geojson, {
-            style: f => {
-                const cropCol = f.properties.crop_name || f.properties.EC_hcat_n || null;
-                const color = getCropColor(cropCol);
-                return {
-                    color, weight: 1.5, opacity: 0.9,
-                    fillColor: color, fillOpacity: 0.45,
-                };
-            },
-            onEachFeature: (feature, layer) => {
-                layer.on('click', () => showFeatureDetail(feature, layer));
-                layer.on('mouseover', () => layer.setStyle({ weight: 3, fillOpacity: 0.7 }));
-                layer.on('mouseout', () => { if (selectedFeature !== layer) featureLayer.resetStyle(layer); });
-            }
-        }).addTo(map);
 
-        document.getElementById('feature-count-badge').textContent = `${geojson.features.length.toLocaleString()} shown`;
+        if (geojson.overview) {
+            lastMode = 'overview';
+            featureLayer = renderOverview(geojson);
+        } else {
+            lastMode = 'full';
+            featureLayer = renderPolygons(geojson);
+        }
+
+        featureLayer.addTo(map);
+
+        const count = geojson.features.length;
+        const modeLabel = geojson.overview ? ' (overview)' : '';
+        document.getElementById('feature-count-badge').textContent = `${count.toLocaleString()}${modeLabel}`;
         updateLegend(geojson);
     } catch (e) {
         console.error('Error loading features:', e);
     } finally {
         hideLoading();
     }
+}
+
+function renderPolygons(geojson) {
+    return L.geoJSON(geojson, {
+        style: f => {
+            const color = getCategoryColor(f.properties);
+            return { color, weight: 1.5, opacity: 0.9, fillColor: color, fillOpacity: 0.45 };
+        },
+        onEachFeature: (feature, layer) => {
+            layer.on('click', () => showFeatureDetail(feature, layer));
+            layer.on('mouseover', () => layer.setStyle({ weight: 3, fillOpacity: 0.7 }));
+            layer.on('mouseout', () => { if (selectedFeature !== layer) featureLayer.resetStyle(layer); });
+        }
+    });
+}
+
+function renderOverview(geojson) {
+    return L.geoJSON(geojson, {
+        pointToLayer: (feature, latlng) => {
+            const count = feature.properties.feature_count;
+            const cat = feature.properties.dominant_category;
+            const color = cat && CATEGORY_COLORS[cat] ? CATEGORY_COLORS[cat] : DEFAULT_COLOR;
+
+            // Scale radius by feature count
+            const radius = Math.min(Math.max(Math.sqrt(count) * 0.8, 6), 40);
+
+            return L.circleMarker(latlng, {
+                radius,
+                fillColor: color,
+                fillOpacity: 0.6,
+                color: color,
+                weight: 1.5,
+                opacity: 0.8,
+            }).bindTooltip(
+                `<strong>${count.toLocaleString()}</strong> features<br>${cat || 'mixed'}`,
+                { className: 'overview-tooltip' }
+            );
+        },
+        onEachFeature: (feature, layer) => {
+            layer.on('click', () => {
+                // Zoom into this cluster
+                const gs = feature.properties.grid_size;
+                const [lng, lat] = feature.geometry.coordinates;
+                map.fitBounds([
+                    [lat - gs / 2, lng - gs / 2],
+                    [lat + gs / 2, lng + gs / 2]
+                ]);
+            });
+        }
+    });
 }
 
 // ===== Feature Detail =====
@@ -218,16 +416,11 @@ function showFeatureDetail(feature, layer) {
     layer.setStyle({ weight: 3, color: '#ffffff', fillOpacity: 0.8 });
 
     const props = feature.properties;
-    // Preferred display order (show what exists)
-    const preferredOrder = ['field_id','farm_id','crop_name','crop_code','EC_trans_n','EC_hcat_n','EC_hcat_c','field_size','crop_area','organic','nation','year'];
+    const order = ['field_id','farm_id','crop_name','crop_code','EC_trans_n','EC_hcat_n','EC_hcat_c','field_size','crop_area','organic','nation','year'];
     let rows = '';
     const shown = new Set();
-    for (const k of preferredOrder) {
-        if (k in props) { rows += fmtRow(k, props[k]); shown.add(k); }
-    }
-    for (const [k, v] of Object.entries(props)) {
-        if (!shown.has(k)) rows += fmtRow(k, v);
-    }
+    for (const k of order) { if (k in props) { rows += fmtRow(k, props[k]); shown.add(k); } }
+    for (const [k, v] of Object.entries(props)) { if (!shown.has(k)) rows += fmtRow(k, v); }
     document.getElementById('feature-detail').innerHTML = `<table class="detail-table">${rows}</table>`;
 }
 
@@ -248,19 +441,33 @@ function fmtRow(key, value) {
 
 // ===== Legend =====
 function updateLegend(geojson) {
-    const crops = new Set();
+    const cats = new Map(); // label -> color
     geojson.features.forEach(f => {
-        const name = f.properties.crop_name || f.properties.EC_hcat_n;
-        if (name) crops.add(name);
+        if (geojson.overview) {
+            const cat = f.properties.dominant_category;
+            if (cat) cats.set(cat, CATEGORY_COLORS[cat] || DEFAULT_COLOR);
+        } else {
+            const label = getLegendLabel(f.properties);
+            if (label !== 'Unknown') cats.set(label, getCategoryColor(f.properties));
+        }
     });
+
     const c = document.getElementById('legend-content');
     c.innerHTML = '';
-    [...crops].sort().forEach(crop => {
+    [...cats.entries()].sort((a, b) => a[0].localeCompare(b[0])).forEach(([label, color]) => {
         const d = document.createElement('div');
         d.className = 'legend-item';
-        d.innerHTML = `<span class="legend-color" style="background:${getCropColor(crop)}"></span>${crop}`;
+        const shortLabel = label.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        d.innerHTML = `<span class="legend-color" style="background:${color}"></span>${shortLabel}`;
         c.appendChild(d);
     });
+
+    // Update legend title based on mode
+    const title = document.querySelector('#legend-section .section-title');
+    if (title) {
+        const icon = title.querySelector('.section-icon')?.outerHTML || '';
+        title.innerHTML = `${icon} Legend ${geojson.overview ? '(Dominant Category)' : '(Crop Type)'}`;
+    }
 }
 
 // ===== Data Catalog =====
@@ -283,7 +490,7 @@ async function fetchCatalog() {
         catalogData = await apiGet('/populate/catalog');
         renderCatalog();
     } catch (e) {
-        list.innerHTML = `<div class="catalog-loading"><span style="color:var(--danger)">Failed to load catalog: ${e.message}</span></div>`;
+        list.innerHTML = `<div class="catalog-loading"><span style="color:var(--danger)">Failed: ${e.message}</span></div>`;
     }
 }
 
@@ -297,10 +504,12 @@ function renderCatalog(searchTerm = '') {
         : catalogData.files;
 
     const readyCount = catalogData.files.filter(f => f.status === 'extracted').length;
+    const partialCount = catalogData.files.filter(f => f.status === 'partial').length;
     summary.innerHTML = `
         <span class="stat"><span class="stat-value">${catalogData.files.length}</span><span class="stat-label">datasets</span></span>
         <span class="stat"><span class="stat-value">${catalogData.total_size_gb} GB</span><span class="stat-label">total</span></span>
         <span class="stat"><span class="stat-value">${readyCount}</span><span class="stat-label">ready</span></span>
+        ${partialCount ? `<span class="stat"><span class="stat-value">${partialCount}</span><span class="stat-label">partial</span></span>` : ''}
     `;
 
     list.innerHTML = '';
@@ -318,7 +527,8 @@ function createCatalogItem(file) {
 
     const icons = {
         available: '📦', downloaded: '💾', extracted: '✅',
-        downloading: '⬇️', extracting: '📂', error: '❌', cancelled: '⛔',
+        downloading: '⬇️', extracting: '📂', error: '❌',
+        cancelled: '⛔', partial: '⚠️',
     };
 
     let actions = '';
@@ -329,11 +539,26 @@ function createCatalogItem(file) {
                 <polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/>
             </svg>Download</button>`;
     } else if (file.status === 'downloaded') {
-        actions = `<button class="btn btn-primary btn-sm" onclick="extractZip('${file.name}')">📂 Extract</button>`;
+        actions = `<button class="btn btn-primary btn-sm" onclick="extractZip('${file.name}')">📂 Extract All</button>`;
+    } else if (file.status === 'partial') {
+        const failedJson = JSON.stringify(file.failed_files || []).replace(/'/g, "\\'");
+        actions = `
+            <button class="btn btn-primary btn-sm" onclick='retryFailed("${file.name}", ${failedJson})'>🔄 Retry Failed</button>
+            <button class="btn btn-secondary btn-sm" onclick="extractZip('${file.name}')">📂 Re-extract All</button>
+        `;
     } else if (file.status === 'downloading') {
         actions = `<button class="btn btn-danger btn-sm" onclick="cancelDownload('${file.name}')">Cancel</button>`;
     } else if (file.status === 'extracted') {
         actions = `<span style="color:var(--success);font-size:11px;font-weight:500;">✓ Ready</span>`;
+    }
+
+    // Status details
+    let details = '';
+    if (file.extracted_files && file.extracted_files.length > 0) {
+        details += `<span title="${file.extracted_files.join(', ')}">${file.extracted_files.length} extracted</span>`;
+    }
+    if (file.failed_files && file.failed_files.length > 0) {
+        details += `<span style="color:var(--danger)" title="${file.failed_files.join(', ')}">${file.failed_files.length} failed</span>`;
     }
 
     let progressHtml = '';
@@ -353,6 +578,7 @@ function createCatalogItem(file) {
             <div class="catalog-item-meta">
                 <span>${formatBytes(file.size_bytes)}</span>
                 <span class="status-badge ${file.status}">${file.status}</span>
+                ${details}
             </div>
             ${progressHtml}
         </div>
@@ -372,9 +598,7 @@ async function startDownload(name, url) {
         addDownloadToast(name);
         startProgressPolling();
         document.getElementById('download-indicator').classList.remove('hidden');
-    } catch (e) {
-        console.error('Download start failed:', e);
-    }
+    } catch (e) { console.error('Download start failed:', e); }
 }
 
 async function extractZip(name) {
@@ -382,15 +606,27 @@ async function extractZip(name) {
         await apiPost('/populate/extract', { name });
         if (catalogData) {
             const f = catalogData.files.find(f => f.name === name);
-            if (f) { f.status = 'extracting'; f.progress = 100; }
+            if (f) { f.status = 'extracting'; f.progress = 0; }
             renderCatalog(document.getElementById('catalog-search').value);
         }
         addDownloadToast(name, 'extracting');
         startProgressPolling();
         document.getElementById('download-indicator').classList.remove('hidden');
-    } catch (e) {
-        console.error('Extract failed:', e);
-    }
+    } catch (e) { console.error('Extract failed:', e); }
+}
+
+async function retryFailed(name, failedFiles) {
+    try {
+        await apiPost('/populate/extract', { name, files: failedFiles });
+        if (catalogData) {
+            const f = catalogData.files.find(f => f.name === name);
+            if (f) { f.status = 'extracting'; }
+            renderCatalog(document.getElementById('catalog-search').value);
+        }
+        addDownloadToast(name, 'extracting');
+        startProgressPolling();
+        document.getElementById('download-indicator').classList.remove('hidden');
+    } catch (e) { console.error('Retry failed:', e); }
 }
 
 async function cancelDownload(name) {
@@ -402,46 +638,38 @@ async function cancelDownload(name) {
             renderCatalog(document.getElementById('catalog-search').value);
         }
         removeDownloadToast(name);
-    } catch (e) {
-        console.error('Cancel failed:', e);
-    }
+    } catch (e) { console.error('Cancel failed:', e); }
 }
 
-// ===== Progress Polling via SSE =====
+// ===== Progress SSE =====
 function startProgressPolling() {
     if (sseSource) return;
     sseSource = new EventSource(API_BASE + '/populate/downloads/events');
-    sseSource.onmessage = (event) => {
-        const downloads = JSON.parse(event.data);
-        updateDownloadProgress(downloads);
-    };
-    sseSource.onerror = () => {
-        sseSource.close();
-        sseSource = null;
-        checkDownloadsComplete();
-    };
+    sseSource.onmessage = (event) => updateDownloadProgress(JSON.parse(event.data));
+    sseSource.onerror = () => { sseSource.close(); sseSource = null; checkDownloadsComplete(); };
 }
 
 function updateDownloadProgress(downloads) {
     let anyActive = false;
-
     for (const [name, info] of Object.entries(downloads)) {
         updateToast(name, info);
         if (catalogData) {
             const f = catalogData.files.find(f => f.name === name);
-            if (f) { f.status = info.status; f.progress = info.progress; }
+            if (f) {
+                f.status = info.status;
+                f.progress = info.progress;
+                f.extracted_files = info.extracted_files || [];
+                f.failed_files = info.failed_files || [];
+            }
         }
         if (info.status === 'downloading' || info.status === 'extracting') anyActive = true;
     }
-
     if (!document.getElementById('catalog-modal').classList.contains('hidden')) {
         renderCatalog(document.getElementById('catalog-search').value);
     }
-
     if (!anyActive) {
         if (sseSource) { sseSource.close(); sseSource = null; }
         document.getElementById('download-indicator').classList.add('hidden');
-        // Reload dataset list to pick up newly extracted files
         loadDatasets(currentDataset);
     }
 }
@@ -449,14 +677,9 @@ function updateDownloadProgress(downloads) {
 async function checkDownloadsComplete() {
     try {
         const status = await apiGet('/populate/downloads/status');
-        const anyActive = Object.values(status).some(d =>
-            d.status === 'downloading' || d.status === 'extracting'
-        );
-        if (anyActive) {
-            startProgressPolling();
-        } else {
-            document.getElementById('download-indicator').classList.add('hidden');
-        }
+        const anyActive = Object.values(status).some(d => d.status === 'downloading' || d.status === 'extracting');
+        if (anyActive) startProgressPolling();
+        else document.getElementById('download-indicator').classList.add('hidden');
     } catch (e) {}
 }
 
@@ -464,15 +687,10 @@ async function checkDownloadsComplete() {
 function addDownloadToast(name, initialStatus = 'downloading') {
     const container = document.getElementById('download-toasts');
     if (document.getElementById(`toast-${CSS.escape(name)}`)) return;
-
     const toast = document.createElement('div');
     toast.className = 'download-toast';
     toast.id = `toast-${name}`;
-
-    const iconHtml = initialStatus === 'extracting'
-        ? '📂'
-        : '<div class="mini-spinner"></div>';
-
+    const iconHtml = initialStatus === 'extracting' ? '📂' : '<div class="mini-spinner"></div>';
     toast.innerHTML = `
         <div class="toast-icon">${iconHtml}</div>
         <div class="toast-body">
@@ -487,44 +705,36 @@ function addDownloadToast(name, initialStatus = 'downloading') {
 
 function updateToast(name, info) {
     const toast = document.getElementById(`toast-${name}`);
-    if (!toast) {
-        if (info.status === 'downloading' || info.status === 'extracting') addDownloadToast(name, info.status);
-        return;
-    }
-
+    if (!toast) { if (info.status === 'downloading' || info.status === 'extracting') addDownloadToast(name, info.status); return; }
     const fill = toast.querySelector('.toast-progress-fill');
     const status = toast.querySelector('.toast-status');
     const icon = toast.querySelector('.toast-icon');
-
     fill.style.width = `${info.progress}%`;
-
     if (info.status === 'downloading') {
         fill.className = 'toast-progress-fill';
-        const dl = formatBytes(info.downloaded_bytes || 0);
-        const total = formatBytes(info.total_bytes || 0);
+        const dl = formatBytes(info.downloaded_bytes || 0), total = formatBytes(info.total_bytes || 0);
         const speed = info.speed_bps ? formatSpeed(info.speed_bps) : '';
         status.textContent = `${dl} / ${total}${speed ? ' • ' + speed : ''} • ${info.progress}%`;
     } else if (info.status === 'extracting') {
-        fill.className = 'toast-progress-fill extracting';
-        fill.style.width = '100%';
-        status.textContent = 'Extracting files...';
+        fill.className = 'toast-progress-fill extracting'; fill.style.width = '100%';
+        const ext = (info.extracted_files || []).length;
+        status.textContent = ext ? `Extracting... (${ext} done)` : 'Extracting...';
         icon.innerHTML = '📂';
     } else if (info.status === 'extracted') {
-        fill.style.width = '100%';
-        fill.className = 'toast-progress-fill';
-        fill.style.background = 'var(--success)';
-        status.textContent = 'Complete! Ready to explore.';
-        icon.innerHTML = '✅';
-        toast.classList.add('success');
-        setTimeout(() => removeDownloadToast(name), 5000);
+        fill.style.width = '100%'; fill.className = 'toast-progress-fill'; fill.style.background = 'var(--success)';
+        status.textContent = 'Complete! Ready to explore.'; icon.innerHTML = '✅';
+        toast.classList.add('success'); setTimeout(() => removeDownloadToast(name), 5000);
+    } else if (info.status === 'partial') {
+        fill.style.width = '100%'; fill.style.background = 'var(--warning)';
+        const failed = (info.failed_files || []).length;
+        status.textContent = `${failed} file(s) failed – retry in catalog`; icon.innerHTML = '⚠️';
+        toast.classList.add('error');
     } else if (info.status === 'error') {
         fill.style.background = 'var(--danger)';
-        status.textContent = `Error: ${info.error || 'Unknown'}`;
-        icon.innerHTML = '❌';
+        status.textContent = `Error: ${info.error || 'Unknown'}`; icon.innerHTML = '❌';
         toast.classList.add('error');
     } else if (info.status === 'cancelled') {
-        status.textContent = 'Cancelled';
-        icon.innerHTML = '⛔';
+        status.textContent = 'Cancelled'; icon.innerHTML = '⛔';
         setTimeout(() => removeDownloadToast(name), 3000);
     }
 }
@@ -538,21 +748,16 @@ function removeDownloadToast(name) {
 document.getElementById('dataset-select').addEventListener('change', (e) => {
     if (e.target.value) selectDataset(e.target.value);
 });
-
 document.getElementById('apply-filters').addEventListener('click', () => loadFeatures());
 document.getElementById('clear-filters').addEventListener('click', () => {
     document.querySelectorAll('[data-filter]').forEach(el => el.value = '');
     loadFeatures();
 });
-
 document.getElementById('catalog-toggle').addEventListener('click', openCatalog);
 document.getElementById('catalog-close').addEventListener('click', closeCatalog);
 document.querySelector('.modal-backdrop').addEventListener('click', closeCatalog);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCatalog(); });
-
-document.getElementById('catalog-search').addEventListener('input', (e) => {
-    renderCatalog(e.target.value);
-});
+document.getElementById('catalog-search').addEventListener('input', (e) => renderCatalog(e.target.value));
 
 let moveTimeout;
 map.on('moveend', () => {
@@ -561,7 +766,4 @@ map.on('moveend', () => {
 });
 
 // ===== Init =====
-document.addEventListener('DOMContentLoaded', () => {
-    loadDatasets();
-    checkDownloadsComplete();
-});
+document.addEventListener('DOMContentLoaded', () => { loadDatasets(); checkDownloadsComplete(); });
