@@ -240,3 +240,6 @@ Desktop.ini
 
 # Test output
 test-results/
+
+# gis data
+data/*
