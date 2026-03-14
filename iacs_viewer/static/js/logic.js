@@ -373,40 +373,95 @@ function renderPolygons(geojson) {
     });
 }
 
-function renderOverview(geojson) {
-    return L.geoJSON(geojson, {
-        pointToLayer: (feature, latlng) => {
-            const count = feature.properties.feature_count;
-            const cat = feature.properties.dominant_category;
-            const color = cat && CATEGORY_COLORS[cat] ? CATEGORY_COLORS[cat] : DEFAULT_COLOR;
+function mergeOverviewClusters(features) {
+    /**
+     * Greedy merge: repeatedly combine the closest pair of clusters
+     * until no two clusters overlap on screen. Uses pixel distance
+     * so it works at any zoom level.
+     */
+    if (!features.length) return features;
 
-            // Scale radius by feature count
-            const radius = Math.min(Math.max(Math.sqrt(count) * 0.8, 6), 40);
-
-            return L.circleMarker(latlng, {
-                radius,
-                fillColor: color,
-                fillOpacity: 0.6,
-                color: color,
-                weight: 1.5,
-                opacity: 0.8,
-            }).bindTooltip(
-                `<strong>${count.toLocaleString()}</strong> features<br>${cat || 'mixed'}`,
-                { className: 'overview-tooltip' }
-            );
-        },
-        onEachFeature: (feature, layer) => {
-            layer.on('click', () => {
-                // Zoom into this cluster
-                const gs = feature.properties.grid_size;
-                const [lng, lat] = feature.geometry.coordinates;
-                map.fitBounds([
-                    [lat - gs / 2, lng - gs / 2],
-                    [lat + gs / 2, lng + gs / 2]
-                ]);
-            });
-        }
+    // Convert to working array with pixel positions
+    let clusters = features.map(f => {
+        const [lng, lat] = f.geometry.coordinates;
+        const pt = map.latLngToContainerPoint([lat, lng]);
+        return {
+            x: pt.x, y: pt.y,
+            lng, lat,
+            count: f.properties.feature_count,
+            cat: f.properties.dominant_category,
+            gridSize: f.properties.grid_size,
+        };
     });
+
+    // Merge until no overlaps. A cluster's radius in pixels:
+    function radius(c) { return Math.min(Math.max(Math.sqrt(c.count) * 0.7, 8), 44); }
+
+    let merged = true;
+    while (merged) {
+        merged = false;
+        for (let i = 0; i < clusters.length; i++) {
+            for (let j = i + 1; j < clusters.length; j++) {
+                const a = clusters[i], b = clusters[j];
+                const dx = a.x - b.x, dy = a.y - b.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const minDist = radius(a) + radius(b) + 4; // 4px padding
+
+                if (dist < minDist) {
+                    // Merge b into a (weighted average position)
+                    const total = a.count + b.count;
+                    a.lng = (a.lng * a.count + b.lng * b.count) / total;
+                    a.lat = (a.lat * a.count + b.lat * b.count) / total;
+                    const pt = map.latLngToContainerPoint([a.lat, a.lng]);
+                    a.x = pt.x; a.y = pt.y;
+                    a.count = total;
+                    // Keep dominant category of the larger cluster
+                    if (b.count > a.count - b.count) a.cat = b.cat;
+                    a.gridSize = Math.max(a.gridSize, b.gridSize);
+                    clusters.splice(j, 1);
+                    merged = true;
+                    break;
+                }
+            }
+            if (merged) break;
+        }
+    }
+
+    return clusters;
+}
+
+function renderOverview(geojson) {
+    const clusters = mergeOverviewClusters(geojson.features);
+    const group = L.layerGroup();
+
+    for (const c of clusters) {
+        const color = c.cat && CATEGORY_COLORS[c.cat] ? CATEGORY_COLORS[c.cat] : DEFAULT_COLOR;
+        const radius = Math.min(Math.max(Math.sqrt(c.count) * 0.7, 8), 44);
+
+        const marker = L.circleMarker([c.lat, c.lng], {
+            radius,
+            fillColor: color,
+            fillOpacity: 0.55,
+            color: color,
+            weight: 1.5,
+            opacity: 0.75,
+        }).bindTooltip(
+            `<strong>${c.count.toLocaleString()}</strong> features<br>${(c.cat || 'mixed').replace(/_/g, ' ')}`,
+            { className: 'overview-tooltip' }
+        );
+
+        marker.on('click', () => {
+            const gs = c.gridSize;
+            map.fitBounds([
+                [c.lat - gs, c.lng - gs],
+                [c.lat + gs, c.lng + gs]
+            ]);
+        });
+
+        group.addLayer(marker);
+    }
+
+    return group;
 }
 
 // ===== Feature Detail =====
