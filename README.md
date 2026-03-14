@@ -1,61 +1,83 @@
-# iacs-viewer
-This project gives an insight into the IACS dataset published by the Europe-LAND HE Project: https://zenodo.org/records/15692199
-## Overview
+# IACS Viewer
 
-**iacs-viewer** is a web-based tool designed to help users explore and analyze the IACS (Integrated Administration and Control System) dataset. The application provides interactive visualizations and filtering options to make it easier to gain insights from the data.
+A web-based GIS application for exploring IACS (Integrated Administration and Control System) agricultural parcel data from the [Europe-LAND HE Project](https://zenodo.org/records/15692199).
 
 ## Features
 
-- Interactive data exploration
-- Filtering and search capabilities
-- Visualizations for key dataset attributes
-- User-friendly interface
+- **Interactive map** with crop-type colored parcels (Leaflet + CartoDB dark basemap)
+- **DuckDB-powered queries** — fast spatial + attribute filtering on GeoPackage and GeoParquet files
+- **Bbox viewport loading** — only fetches features visible on screen
+- **Attribute filters** — filter by nation, year, crop type, EC category, organic status
+- **Feature inspector** — click any parcel to see full attribute details
+- **Dynamic legend** — shows crop types currently on screen
+- **Multi-format support** — drop `.gpkg` or `.parquet` files in `data/` and they appear automatically
 
-## Getting Started
-1. Clone the repository
+## Quick Start
 
-    ```bash
-    git clone https://github.com/yourusername/iacs-viewer.git
-    cd iacs-viewer
-    ```
+### 1. Install dependencies
 
-2. Set up a virtual environment and install dependencies
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install flask duckdb geopandas shapely fiona pyarrow python-dotenv requests
+```
 
-    ```bash
-    uv venv
-    source .venv/bin/activate
-    uv sync
-    ```
+### 2. Create sample data (optional)
 
-3. Configure environment variables
+```bash
+python create_sample_data.py
+```
 
-    Create a `.env` file in the root directory and add:
+This creates a small GeoPackage + GeoParquet with ~125 synthetic IACS parcels across 6 EU countries.
 
-    ```env
-    FLASK_ENV=development
-    SQLALCHEMY_DATABASE_URI=postgresql://your_user:your_password@localhost:5432/DIACS
-    SECRET_KEY=your_secret_key
-    ```
+### 3. Run the app
 
-4. Setup a postgreSQL database
+```bash
+python app.py
+```
 
-    - Create a database named `DIACS`
-    - Ensure the PostGIS extension is enabled:
+Open [http://localhost:5000](http://localhost:5000) in your browser.
 
-    ```sql
-    CREATE EXTENSION IF NOT EXISTS postgis;
-    ```
+### Using your own data
 
-5. Start the development server
+Place any `.gpkg` or `.parquet` files in the `data/` directory. They will be automatically detected and available in the dataset selector.
 
-    ```bash
-    python run.py
-    ```
+## Architecture
+
+```
+iacs-viewer/
+├── app.py                     # Flask entry point
+├── create_sample_data.py      # Generate sample IACS data
+├── data/                      # Drop .gpkg/.parquet files here
+├── iacs_viewer/
+│   ├── __init__.py            # App factory
+│   ├── config.py              # Configuration
+│   ├── query_engine.py        # DuckDB spatial query engine
+│   ├── routes/
+│   │   ├── api.py             # REST API (datasets, features, filters)
+│   │   └── main.py            # Frontend route
+│   ├── static/
+│   │   ├── css/style.css      # Dark theme UI
+│   │   └── js/logic.js        # Map + interaction logic
+│   └── templates/
+│       └── index.html         # Main page
+└── pyproject.toml
+```
+
+## API Endpoints
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/datasets` | List available datasets |
+| `GET /api/datasets/<file>/info` | Dataset metadata (bounds, columns, count) |
+| `GET /api/datasets/<file>/features?bbox=&limit=&filter_*=` | GeoJSON features with spatial/attribute filters |
+| `GET /api/datasets/<file>/values/<column>` | Unique values for filter dropdowns |
+| `GET /api/datasets/<file>/stats` | Summary statistics |
 
 ## Dataset
 
-The IACS dataset is available from [Zenodo](https://zenodo.org/records/15692199). Please download and place the dataset in the appropriate directory as described in the project documentation.
+The IACS dataset is available from [Zenodo](https://zenodo.org/records/15692199). Download GeoPackage or Parquet files and place them in the `data/` directory.
 
 ## License
 
-This project is licensed under the MIT License.
+MIT License

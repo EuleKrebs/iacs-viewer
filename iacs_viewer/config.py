@@ -1,28 +1,24 @@
 import os
 from dotenv import load_dotenv
 
-class Config:
-    # Flask settings
-    load_dotenv()
-    SECRET_KEY = os.getenv('SECRET_KEY', 'NO_KEY_SET')
-    DEBUG = True
-    
-    # Logging settings
-    LOG_LEVEL = 'DEBUG'
-    LOG_FORMAT = '%(asctime)s - %(levelname)s - %(message)s'
-    LOG_FILE = 'logs/app.log'
+load_dotenv()
 
-    # db settings
-    SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI', 'sqlite:///app.db')
+
+class Config:
+    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
+    DEBUG = True
+
+    # Optional: PostgreSQL for production data import pipeline
+    SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI', '')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    # Data directory for GeoPackage / GeoParquet files
+    DATA_DIR = os.getenv('DATA_DIR', 'data')
+
 
 class DevelopmentConfig(Config):
     DEBUG = True
-    
+
+
 class ProductionConfig(Config):
     DEBUG = False
-    LOG_LEVEL = 'ERROR'
-
-class CoolConfig(object):
-    SQLALCHEMY_DATABASE_URI = "postgresql://cnoll:1234@localhost:5432/cool_db"
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
