@@ -272,7 +272,7 @@ async function selectDataset(filename) {
 function showDatasetInfo(info) {
     const box = document.getElementById('dataset-info');
     box.classList.add('visible');
-    const crs = info.crs ? `EPSG:${info.crs}` : 'EPSG:4326';
+    const crs = info.crs ? (String(info.crs).startsWith('EPSG:') ? info.crs : `EPSG:${info.crs}`) : 'EPSG:4326';
     box.innerHTML = `
         <div class="info-row"><span class="info-label">Features</span><span class="info-value">${info.feature_count.toLocaleString()}</span></div>
         <div class="info-row"><span class="info-label">Columns</span><span class="info-value">${info.columns.length}</span></div>
