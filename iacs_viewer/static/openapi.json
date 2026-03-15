@@ -1,0 +1,831 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "IACS Viewer API",
+    "description": "REST API for querying and managing IACS (Integrated Administration and Control System) geospatial datasets. Provides endpoints for browsing datasets, querying spatial features with filtering and clustering, and managing data downloads from Zenodo.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "IACS Viewer"
+    },
+    "license": {
+      "name": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Current server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Datasets",
+      "description": "Query and explore loaded IACS datasets"
+    },
+    {
+      "name": "Data Catalog",
+      "description": "Browse, download, and extract datasets from Zenodo"
+    }
+  ],
+  "paths": {
+    "/api/datasets": {
+      "get": {
+        "tags": ["Datasets"],
+        "summary": "List all available datasets",
+        "description": "Returns a list of all dataset filenames currently loaded in the data directory.",
+        "operationId": "listDatasets",
+        "parameters": [
+          {
+            "name": "reload",
+            "in": "query",
+            "description": "If set to any truthy value, forces a reload/rescan of available datasets before returning the list.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of dataset filenames",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "example": ["austria_2021.geoparquet", "france_2020.geoparquet"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/datasets/{filename}/info": {
+      "get": {
+        "tags": ["Datasets"],
+        "summary": "Get dataset metadata",
+        "description": "Returns metadata for a specific dataset including column names, CRS, bounding box, and feature count.",
+        "operationId": "getDatasetInfo",
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "description": "Dataset filename (e.g. `austria_2021.geoparquet`)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dataset metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetInfo"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Dataset not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/datasets/{filename}/features": {
+      "get": {
+        "tags": ["Datasets"],
+        "summary": "Get features (smart mode)",
+        "description": "Smart feature endpoint that automatically decides between overview mode (clustered points) and full mode (polygons) based on the zoom level. At low zoom levels, features are aggregated into a grid of cluster points. At high zoom levels, full polygon geometries are returned.\n\n**Modes:**\n- `overview`: Returns clustered point features with a `point_count` property. Grid size adapts to zoom level.\n- `full`: Returns actual polygon geometries with all attributes. Supports pagination via `limit`/`offset`.\n\nFor small datasets (< 50,000 features), full mode is always used regardless of zoom.",
+        "operationId": "getFeatures",
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "description": "Dataset filename",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bbox",
+            "in": "query",
+            "description": "Bounding box in EPSG:4326 as `minx,miny,maxx,maxy`",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "9.5,46.3,17.2,49.0"
+            }
+          },
+          {
+            "name": "zoom",
+            "in": "query",
+            "description": "Current map zoom level. Used to auto-select overview vs full mode. Default: 5",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 5
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of features to return in full mode. Default: 3000",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 3000
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Pagination offset for full mode. Default: 0",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "description": "Force a specific mode instead of auto-detection. Values: `full` or `overview`",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["full", "overview"]
+            }
+          },
+          {
+            "name": "filter_nation",
+            "in": "query",
+            "description": "Filter by nation (example attribute filter). Any `filter_<column>` parameter is supported.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter_year",
+            "in": "query",
+            "description": "Filter by year",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter_crop_name",
+            "in": "query",
+            "description": "Filter by crop name",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter_EC_hcat_n",
+            "in": "query",
+            "description": "Filter by EC harmonized category name",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter_organic",
+            "in": "query",
+            "description": "Filter by organic status (`true` / `false`)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GeoJSON FeatureCollection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeatureCollection"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Dataset not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/datasets/{filename}/values/{column}": {
+      "get": {
+        "tags": ["Datasets"],
+        "summary": "Get unique values for a column",
+        "description": "Returns all unique (distinct) values for a given column in the dataset. Useful for populating filter dropdowns.",
+        "operationId": "getUniqueValues",
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "description": "Dataset filename",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "column",
+            "in": "path",
+            "required": true,
+            "description": "Column name to get unique values for",
+            "schema": {
+              "type": "string",
+              "example": "crop_name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of unique values",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {},
+                  "example": ["Wheat", "Barley", "Maize", "Rapeseed"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Dataset not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/datasets/{filename}/stats": {
+      "get": {
+        "tags": ["Datasets"],
+        "summary": "Get dataset statistics",
+        "description": "Returns summary statistics for the dataset (e.g. column distributions, counts).",
+        "operationId": "getDatasetStats",
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "description": "Dataset filename",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dataset statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Dataset not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/populate/catalog": {
+      "get": {
+        "tags": ["Data Catalog"],
+        "summary": "Browse available datasets from Zenodo",
+        "description": "Fetches the dataset catalog from Zenodo and cross-references with locally available files. Shows download status, extraction progress, and available spatial files for each zip archive.",
+        "operationId": "getCatalog",
+        "responses": {
+          "200": {
+            "description": "Catalog listing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Catalog"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Failed to reach Zenodo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/populate/download": {
+      "post": {
+        "tags": ["Data Catalog"],
+        "summary": "Start a dataset download",
+        "description": "Initiates a background download of a dataset file from Zenodo. The download runs asynchronously; use the status or events endpoint to track progress. After download, zip files are automatically extracted.",
+        "operationId": "startDownload",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "url"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Filename to download",
+                    "example": "austria_2021.zip"
+                  },
+                  "url": {
+                    "type": "string",
+                    "description": "Direct download URL from Zenodo",
+                    "example": "https://zenodo.org/api/records/15692199/files/austria_2021.zip/content"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Download started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "started"
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "austria_2021.zip"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Download already in progress",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/populate/extract": {
+      "post": {
+        "tags": ["Data Catalog"],
+        "summary": "Extract a downloaded zip file",
+        "description": "Triggers extraction of spatial files from a previously downloaded zip archive. Optionally pass a list of specific filenames to extract (useful for retrying failed extractions).",
+        "operationId": "extractZip",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Zip filename to extract",
+                    "example": "austria_2021.zip"
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Optional list of specific filenames within the zip to extract (for retry). If omitted, all spatial files are extracted.",
+                    "example": ["austria_2021.geoparquet"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Extraction started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "extracting"
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "austria_2021.zip"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Zip file not found on disk",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/populate/download/{name}/cancel": {
+      "post": {
+        "tags": ["Data Catalog"],
+        "summary": "Cancel an active download",
+        "description": "Cancels a currently running download. The partially downloaded file is removed from disk.",
+        "operationId": "cancelDownload",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "description": "Filename of the download to cancel",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Download cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "cancelled"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active download found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/populate/downloads/status": {
+      "get": {
+        "tags": ["Data Catalog"],
+        "summary": "Get status of all downloads",
+        "description": "Returns the current status of all tracked downloads including progress, speed, and any errors.",
+        "operationId": "getDownloadsStatus",
+        "responses": {
+          "200": {
+            "description": "Map of filename to download status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/DownloadStatus"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/populate/downloads/events": {
+      "get": {
+        "tags": ["Data Catalog"],
+        "summary": "Stream download progress (SSE)",
+        "description": "Server-Sent Events (SSE) endpoint that streams real-time download progress updates. The stream emits JSON-encoded status objects every second while downloads are active, then closes automatically when all downloads complete.",
+        "operationId": "getDownloadEvents",
+        "responses": {
+          "200": {
+            "description": "SSE event stream",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "description": "Server-Sent Events stream. Each `data:` line contains a JSON object mapping filenames to their download status."
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error message"
+          }
+        }
+      },
+      "DatasetInfo": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "example": "austria_2021.geoparquet"
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": ["geometry", "nation", "year", "crop_name", "EC_hcat_n", "organic", "area_ha"]
+          },
+          "crs": {
+            "type": "string",
+            "nullable": true,
+            "example": "EPSG:4326"
+          },
+          "bounds": {
+            "type": "object",
+            "properties": {
+              "minx": { "type": "number", "example": 9.53 },
+              "miny": { "type": "number", "example": 46.37 },
+              "maxx": { "type": "number", "example": 17.16 },
+              "maxy": { "type": "number", "example": 49.02 }
+            }
+          },
+          "feature_count": {
+            "type": "integer",
+            "example": 2345678
+          }
+        }
+      },
+      "FeatureCollection": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["FeatureCollection"],
+            "example": "FeatureCollection"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Feature"
+            }
+          },
+          "overview": {
+            "type": "boolean",
+            "description": "Whether this response is an overview (clustered) or full detail. `false` for full mode."
+          }
+        }
+      },
+      "Feature": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["Feature"]
+          },
+          "geometry": {
+            "type": "object",
+            "description": "GeoJSON geometry (Point for overview, Polygon/MultiPolygon for full)"
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Feature attributes. In overview mode includes `point_count`."
+          }
+        }
+      },
+      "Catalog": {
+        "type": "object",
+        "properties": {
+          "record_id": {
+            "type": "integer",
+            "example": 15692199
+          },
+          "title": {
+            "type": "string",
+            "example": "IACS Dataset"
+          },
+          "total_size_gb": {
+            "type": "number",
+            "example": 12.5
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogFile"
+            }
+          }
+        }
+      },
+      "CatalogFile": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "austria_2021.zip"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "example": 104857600
+          },
+          "size_mb": {
+            "type": "number",
+            "example": 100.0
+          },
+          "url": {
+            "type": "string",
+            "example": "https://zenodo.org/api/records/15692199/files/austria_2021.zip/content"
+          },
+          "checksum": {
+            "type": "string",
+            "example": "md5:abc123..."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["available", "downloading", "extracting", "downloaded", "extracted", "partial", "error"],
+            "description": "Current status of this file locally"
+          },
+          "progress": {
+            "type": "number",
+            "description": "Download/extraction progress (0-100)",
+            "example": 75.5
+          },
+          "extracted_files": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "List of successfully extracted spatial files"
+          },
+          "failed_files": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "List of files that failed to extract"
+          }
+        }
+      },
+      "DownloadStatus": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["downloading", "extracting", "extracted", "partial", "error", "cancelled"],
+            "example": "downloading"
+          },
+          "progress": {
+            "type": "number",
+            "example": 45.2
+          },
+          "downloaded_bytes": {
+            "type": "integer",
+            "example": 52428800
+          },
+          "total_bytes": {
+            "type": "integer",
+            "example": 104857600
+          },
+          "speed_bps": {
+            "type": "integer",
+            "description": "Download speed in bytes per second",
+            "example": 5242880
+          },
+          "error": {
+            "type": "string",
+            "nullable": true
+          },
+          "started_at": {
+            "type": "number",
+            "description": "Unix timestamp when download started"
+          },
+          "completed_at": {
+            "type": "number",
+            "description": "Unix timestamp when download/extraction completed",
+            "nullable": true
+          },
+          "extracted_files": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "failed_files": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IACS Viewer – API Documentation</title>
+
+    <!-- Swagger UI -->
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui.css" />
+
+    <!-- Google Fonts (match main app) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f8f9fb;
+        }
+
+        /* Header bar matching main app */
+        .api-header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #fff;
+            padding: 0 24px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .header-left svg {
+            width: 28px;
+            height: 28px;
+            color: #4fc3f7;
+        }
+        .header-left h1 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+        .header-left h1 span {
+            color: #4fc3f7;
+            font-weight: 400;
+            margin-left: 8px;
+        }
+        .header-right a {
+            color: #90caf9;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+        .header-right a:hover {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+
+        /* Override some Swagger UI styles for a cleaner look */
+        .swagger-ui .topbar { display: none; }
+        .swagger-ui .info { margin: 30px 0 20px; }
+        .swagger-ui .info .title { font-family: 'Inter', sans-serif; }
+        .swagger-ui .opblock-tag { font-family: 'Inter', sans-serif; }
+        .swagger-ui .btn { font-family: 'Inter', sans-serif; }
+        .swagger-ui .opblock .opblock-summary-operation-id,
+        .swagger-ui .opblock .opblock-summary-path { font-family: 'Inter', monospace; }
+        #swagger-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="api-header">
+        <div class="header-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5"/>
+                <path d="M2 12l10 5 10-5"/>
+            </svg>
+            <h1>IACS Viewer<span>API Documentation</span></h1>
+        </div>
+        <div class="header-right">
+            <a href="/">← Back to Viewer</a>
+        </div>
+    </header>
+
+    <!-- Swagger UI container -->
+    <div id="swagger-container">
+        <div id="swagger-ui"></div>
+    </div>
+
+    <script src="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"></script>
+    <script>
+        window.onload = () => {
+            SwaggerUIBundle({
+                url: "{{ url_for('static', filename='openapi.json') }}",
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIBundle.SwaggerUIStandalonePreset
+                ],
+                layout: "BaseLayout",
+                defaultModelsExpandDepth: 2,
+                defaultModelExpandDepth: 2,
+                docExpansion: "list",
+                filter: true,
+                tryItOutEnabled: true,
+            });
+        };
+    </script>
+</body>
+</html>
