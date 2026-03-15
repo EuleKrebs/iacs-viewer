@@ -216,15 +216,7 @@ Dockerfile.*
 *.container
 *.pid
 
-# Postgres data (from your docker-compose)
-pData/
-*.sql
-*.dump
-
-# Flask-Migrate migration folders (if you don't want to track them)
-migrations/
-
-# VSCode settings (if not already ignored)
+# VSCode settings
 .vscode/
 
 # MacOS
