@@ -10,7 +10,7 @@ ARG GID=1000
 
 # Install build tools and libraries, clean up, create user/group, and set /app ownership
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends build-essential curl libpq-dev \
+  && apt-get install -y --no-install-recommends build-essential curl \
   && rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man \
   && apt-get clean \
   && groupadd -g "${GID}" ${USERNAME} \
@@ -34,7 +34,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --locked --no-dev --no-install-project
 
-COPY . ${WORKING_DIR}
+COPY . ${WORKDIR_DIR}
 
 # Then, add the rest of the project source code and install it
 # Installing separately from its dependencies allows optimal layer caching
@@ -47,9 +47,8 @@ ENV PATH="/home/${USERNAME}/.local/bin:$PATH"
 
 # Copy the entrypoint script and set permissions
 ENV FLASK_APP=iacs_viewer
-#RUN chmod +x entrypoint.sh
+RUN chmod +x entrypoint.sh
 
 USER ${USERNAME}
 
 ENTRYPOINT [ "./entrypoint.sh" ]
-#CMD ["waitress-serve", "--host=0.0.0.0", "--port=5000", "app:app"]

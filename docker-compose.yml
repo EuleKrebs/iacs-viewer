@@ -1,20 +1,4 @@
 services:
-  db:
-    image: postgres
-    container_name: db
-    restart: always
-    ports:
-      - 5123:5432
-    env_file:
-      - .env    
-    volumes:
-      - ./pData:/var/lib/postgresql/data
-    healthcheck:      
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} -t 1"]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 10s
   iacs-viewer:
     container_name: iacs_viewer
     build:
@@ -24,9 +8,6 @@ services:
       - FLASK_APP=app.py
       - FLASK_RUN_HOST=0.0.0.0
     ports:
-      - 5000:5000    
-    depends_on:
-      db:
-        condition: service_healthy    
-    links: 
-        - db
+      - 5000:5000
+    volumes:
+      - ./data:/app/data
